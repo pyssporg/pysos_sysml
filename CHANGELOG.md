@@ -7,15 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-11-19
+
 ### Changed
 
-- Reconciled `lower.to_manifest` with the schema owned by `pysos_coordinate`:
-  added top-level `name` and `timing`; emit `command` as an argv list tokenized
-  with `shlex.split`; emit `site`, `application`, and `entity` as text; emit
-  endpoints as `host`/`port` only; emit the reserved `startup_timeout` default.
-  The strict multiplicity alignment check is unchanged.
+- Reconciled `lower.to_manifest` with schema **version 1** owned by
+  `pysos_coordinate`: added top-level `name` and `timing`; emit `command` as an
+  argv list tokenized with `shlex.split`; emit `site`, `application`, and
+  `entity` as text (string entity ids); emit endpoints as `host`/`port` only;
+  emit the reserved `startup_timeout` default. The strict multiplicity
+  alignment check is unchanged.
 - Documentation now names `pysos_coordinate` as the schema owner and points at
   its normative manifest leaf instead of describing a second owner.
+- The optional `[dev]` dependency on `pysos-coordinate` is pinned to the v0.2.1
+  release wheel instead of a Git checkout, so the cross-repo round-trip is
+  reproducible.
 
 ### Added
 
