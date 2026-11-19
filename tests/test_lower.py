@@ -12,12 +12,22 @@ from pysos_sysml.model import EndpointDef, EntityDef, FederationDef, InstanceDef
 FIXTURE = Path(__file__).parent / "fixtures" / "federation.sysml"
 
 
+def _env(port, scenario=None):
+    env = {
+        "PYSOS_TELEMETRY_PORT": str(port),
+        "PYSOS_CONTROL_PORT": str(port + 1000),
+    }
+    if scenario is not None:
+        env["PYSOS_SCENARIO"] = scenario
+    return env
+
+
 def _instance(name, port, entity, command, cwd, site, application):
     return {
         "name": name,
         "command": command,
         "cwd": cwd,
-        "env": {},
+        "env": _env(port),
         "entities": [
             {
                 "site": str(site),
@@ -48,7 +58,7 @@ def test_manifest_matches_schema_one_exactly():
 
 
 @pytest.mark.level_contract
-def test_occurrence_expansion_and_reserved_env():
+def test_occurrence_expansion_and_producer_env():
     manifest = to_manifest(load_federation(FIXTURE))
     assert manifest["schema"] == 1
     assert manifest["name"] == "Soc"
@@ -59,10 +69,79 @@ def test_occurrence_expansion_and_reserved_env():
         "sensor_3",
         "gateway",
     ]
-    assert all(entry["env"] == {} for entry in manifest["instances"])
+    assert [entry["env"] for entry in manifest["instances"]] == [
+        _env(5100),
+        _env(5101),
+        _env(5102),
+        _env(5200),
+    ]
     assert all(
         isinstance(entry["command"], list) for entry in manifest["instances"]
     )
+
+
+def _federation(instance):
+    return FederationDef(name="Soc", instances=[instance])
+
+
+def _node(**overrides):
+    values = {
+        "name": "node",
+        "part_def": "Node",
+        "count": 1,
+        "entities": [EntityDef(site=1, application=1, entity=1, marking="U")],
+        "telemetry_ports": [EndpointDef(name="telemetry", port=1)],
+        "control_ports": [EndpointDef(name="control", port=2)],
+        "command": "run",
+        "cwd": "/",
+    }
+    values.update(overrides)
+    return InstanceDef(**values)
+
+
+@pytest.mark.level_unit
+def test_authored_scenario_reaches_every_occurrence_env():
+    federation = _federation(
+        _node(
+            count=2,
+            entities=[
+                EntityDef(site=1, application=1, entity=1, marking="U"),
+                EntityDef(site=1, application=1, entity=2, marking="U"),
+            ],
+            telemetry_ports=[
+                EndpointDef(name="telemetry", port=5000),
+                EndpointDef(name="telemetry", port=5001),
+            ],
+            control_ports=[
+                EndpointDef(name="control", port=6000),
+                EndpointDef(name="control", port=6001),
+            ],
+            scenario="cruise",
+        )
+    )
+    envs = [entry["env"] for entry in to_manifest(federation)["instances"]]
+    assert envs == [_env(5000, "cruise"), _env(5001, "cruise")]
+    assert [env["PYSOS_SCENARIO"] for env in envs] == ["cruise", "cruise"]
+
+
+@pytest.mark.level_unit
+def test_scenario_absent_emits_no_scenario_key():
+    env = to_manifest(_federation(_node()))["instances"][0]["env"]
+    assert env == {
+        "PYSOS_TELEMETRY_PORT": "1",
+        "PYSOS_CONTROL_PORT": "2",
+    }
+    assert "PYSOS_SCENARIO" not in env
+
+
+@pytest.mark.level_unit
+def test_scenario_lowering_is_deterministic():
+    federation = _federation(_node(scenario="descent"))
+    first = manifest_json(federation)
+    second = manifest_json(federation)
+    assert first == second
+    assert first == json.dumps(to_manifest(federation), sort_keys=True, indent=2) + "\n"
+    assert '"PYSOS_SCENARIO": "descent"' in first
 
 
 @pytest.mark.level_component

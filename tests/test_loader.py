@@ -106,6 +106,51 @@ def test_missing_required_attribute_is_rejected(tmp_path):
 
 
 @pytest.mark.level_unit
+def test_optional_scenario_lands_on_the_instance_once_per_usage(tmp_path):
+    path = _variant(
+        tmp_path,
+        '      attribute cwd : String = "/opt/sensor";\n',
+        '      attribute cwd : String = "/opt/sensor";\n'
+        '      attribute scenario : String = "cruise";\n',
+    )
+    federation = load_federation(path)
+    sensor, gateway = federation.instances
+    assert sensor.scenario == "cruise"
+    assert sensor.count == 3
+    assert [len(sensor.entities), len(sensor.telemetry_ports)] == [3, 3]
+    assert gateway.scenario is None
+
+
+@pytest.mark.level_unit
+def test_scenario_is_absent_from_the_ir_when_not_authored():
+    sensor, gateway = load_federation(FIXTURE).instances
+    assert sensor.scenario is None
+    assert gateway.scenario is None
+
+
+@pytest.mark.level_unit
+def test_scenario_must_be_typed_string(tmp_path):
+    path = _variant(
+        tmp_path,
+        '      attribute cwd : String = "/opt/sensor";\n',
+        '      attribute cwd : String = "/opt/sensor";\n'
+        "      attribute scenario : Integer = 1;\n",
+    )
+    _assert_error(path, "Soc::Federation::sensor::scenario", "must be typed String")
+
+
+@pytest.mark.level_unit
+def test_scenario_must_be_a_quoted_string_literal(tmp_path):
+    path = _variant(
+        tmp_path,
+        '      attribute cwd : String = "/opt/sensor";\n',
+        '      attribute cwd : String = "/opt/sensor";\n'
+        "      attribute scenario : String = cruise;\n",
+    )
+    _assert_error(path, "Soc::Federation::sensor::scenario", "quoted String literal")
+
+
+@pytest.mark.level_unit
 def test_unknown_instance_attribute_is_rejected(tmp_path):
     path = _variant(
         tmp_path,

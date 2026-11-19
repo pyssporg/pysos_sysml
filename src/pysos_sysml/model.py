@@ -50,7 +50,9 @@ class InstanceDef:
 
     ``count`` is the declared multiplicity (1 when omitted). The three lists
     each hold ``count`` entries in occurrence order. ``part_def`` is the bare
-    name of the part definition the usage is typed by.
+    name of the part definition the usage is typed by. ``scenario`` is the
+    optional authored flight scenario; one value applies to every occurrence
+    and ``None`` means no scenario was authored.
     """
 
     name: str
@@ -61,6 +63,7 @@ class InstanceDef:
     control_ports: list[EndpointDef]
     command: str
     cwd: str
+    scenario: str | None = None
 
 
 @dataclass

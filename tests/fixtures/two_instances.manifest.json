@@ -21,7 +21,10 @@
           "site": "1"
         }
       ],
-      "env": {},
+      "env": {
+        "PYSOS_CONTROL_PORT": "5651",
+        "PYSOS_TELEMETRY_PORT": "5551"
+      },
       "name": "alpha",
       "startup_timeout": 30.0,
       "telemetry": [
@@ -50,7 +53,10 @@
           "site": "1"
         }
       ],
-      "env": {},
+      "env": {
+        "PYSOS_CONTROL_PORT": "5652",
+        "PYSOS_TELEMETRY_PORT": "5552"
+      },
       "name": "beta",
       "startup_timeout": 30.0,
       "telemetry": [

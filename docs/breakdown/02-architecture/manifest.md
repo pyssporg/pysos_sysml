@@ -27,7 +27,11 @@ not import the owner and does not execute the result.
       "name": "alpha",
       "command": ["alpha-engine", "--mode", "fast"],
       "cwd": "/opt/alpha",
-      "env": {},
+      "env": {
+        "PYSOS_TELEMETRY_PORT": "5551",
+        "PYSOS_CONTROL_PORT": "5651",
+        "PYSOS_SCENARIO": "cruise"
+      },
       "entities": [
         {"site": "1", "application": "10", "entity": "1", "marking": "UNCLASSIFIED"}
       ],
@@ -53,7 +57,7 @@ instance carries exactly `name`, `command`, `cwd`, `env`, `entities`,
 | `instances[].name` | instance name, or `<name>_<i>` when multiplicity > 1 |
 | `instances[].command` | `command` String tokenized to argv with `shlex.split`; no shell runs |
 | `instances[].cwd` | `cwd` String |
-| `instances[].env` | reserved, `{}` in 0.1.0 |
+| `instances[].env` | producer-owned channel: occurrence ports as decimal text, plus `PYSOS_SCENARIO` when authored |
 | `instances[].entities` | one `EntityDef`: `site`, `application`, `entity` as decimal text, plus `marking` |
 | `instances[].telemetry` | one `EndpointDef`: `host`, `port` only |
 | `instances[].control` | one `EndpointDef`: `host`, `port` only |
@@ -71,9 +75,24 @@ are the occurrence's arithmetic values from
 `02-architecture/sysml-subset.md`, so a three-occurrence instance produces
 three entries, each with one entity and one endpoint per channel.
 
-`env` is reserved because the setup subset has no environment attributes. A
-future schema revision, not a silent extra key, is how environment variables
-would be added.
+## Environment contract
+
+`env` is the producer-owned channel from the authored setup to the launched
+producer process. Lowering always emits exactly these string-to-string keys per
+occurrence:
+
+| Key | Value | Present |
+| --- | --- | --- |
+| `PYSOS_TELEMETRY_PORT` | occurrence telemetry port, decimal text | always |
+| `PYSOS_CONTROL_PORT` | occurrence control port, decimal text | always |
+| `PYSOS_SCENARIO` | authored `scenario` value, verbatim | only when authored |
+
+The scenario is authored once per part usage, so every occurrence of that usage
+carries the same `PYSOS_SCENARIO`; the two port keys differ per occurrence.
+`env` has no other keys. `pysos_coordinate` passes `env` through opaquely: it
+layers the mapping over `os.environ` and validates only that keys and values are
+strings, so these key names are this package's contract with the producer, not
+the schema owner's.
 
 ## Determinism
 

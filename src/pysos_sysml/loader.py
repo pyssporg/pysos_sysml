@@ -37,9 +37,11 @@ _INTEGER_ATTRIBUTES = (
 )
 _STRING_ATTRIBUTES = ("marking", "command", "cwd")
 _INSTANCE_ATTRIBUTES = _INTEGER_ATTRIBUTES + _STRING_ATTRIBUTES
+_OPTIONAL_STRING_ATTRIBUTES = ("scenario",)
 _ATTRIBUTE_TYPES = {
     **{name: "Integer" for name in _INTEGER_ATTRIBUTES},
     **{name: "String" for name in _STRING_ATTRIBUTES},
+    **{name: "String" for name in _OPTIONAL_STRING_ATTRIBUTES},
 }
 
 # A part usage multiplicity is only an integer occurrence count in this subset.
@@ -246,6 +248,18 @@ def _load_instance(
             qualified=f"{qualified}::{name}",
         )
 
+    scenario: str | None = None
+    for name in _OPTIONAL_STRING_ATTRIBUTES:
+        attribute = attributes.get(name)
+        if attribute is not None:
+            values[name] = _attribute_value(
+                attribute,
+                "String",
+                path=path,
+                qualified=f"{qualified}::{name}",
+            )
+            scenario = str(values[name])
+
     annotation = counts.get(usage.name)
     if annotation is not None:
         annotated_type, count = annotation
@@ -285,6 +299,7 @@ def _load_instance(
         control_ports=[EndpointDef(name="control", port=control + index) for index in range(count)],
         command=str(values["command"]),
         cwd=str(values["cwd"]),
+        scenario=scenario,
     )
 
 

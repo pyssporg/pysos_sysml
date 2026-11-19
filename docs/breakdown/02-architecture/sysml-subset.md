@@ -30,14 +30,15 @@ package <Package> {
       attribute controlPort   : Integer = <integer>;
       attribute command       : String  = "<string>";
       attribute cwd           : String  = "<string>";
+      [attribute scenario : String = "<string>";]
     }
   }
 }
 ```
 
-`[]` marks an optional token. `<N>` and `<integer>` are decimal integer
-literals; `<Package>`, `<EntityType>`, and `<instance>` are simple identifiers
-(`[A-Za-z_][A-Za-z0-9_]*`).
+`[]` marks an optional token: the `scenario` line may be omitted, at most once.
+`<N>` and `<integer>` are decimal integer literals; `<Package>`, `<EntityType>`,
+and `<instance>` are simple identifiers (`[A-Za-z_][A-Za-z0-9_]*`).
 
 ## Rules
 
@@ -50,10 +51,10 @@ literals; `<Package>`, `<EntityType>`, and `<instance>` are simple identifiers
    instance; it declares no members. At least one instance must exist.
 4. **Every instance is a `part` usage on `Federation`, typed by a declared part
    def.** The type must resolve; an unknown type is an error.
-5. **An instance body carries exactly the eight attributes above**, all with
-   their declared type and a literal value. Missing, unknown, untyped, or
-   wrongly typed attributes are errors. Bodies contain no nested parts,
-   connections, bindings, ports, or constraints.
+5. **An instance body carries the eight required attributes above plus at most
+   the optional `scenario`,** all with their declared type and a literal value.
+   Missing, unknown, untyped, or wrongly typed attributes are errors. Bodies
+   contain no nested parts, connections, bindings, ports, or constraints.
 6. **Multiplicity is one positive integer on the declaration line.** `[3]`
    expands to three occurrences; an omitted annotation means one occurrence.
    Ranges (`[2..4]`), unbounded (`[0..*]`), and zero are rejected.
@@ -73,6 +74,11 @@ literals; `<Package>`, `<EntityType>`, and `<instance>` are simple identifiers
 | `controlPort` | `Integer` | base port; occurrence *i* gets `controlPort + i` |
 | `command` | `String` | executable command line |
 | `cwd` | `String` | working directory |
+| `scenario` | `String` | optional flight scenario; same value for every occurrence |
+
+`scenario` is optional and unrelated to multiplicity: one authored value applies
+to every occurrence of the usage. Its literal follows the same rule as
+`command` (quoted string, escapes decoded).
 
 Occurrences are zero-based for arithmetic and one-based for names:
 `part sensor : Sensor [3]` yields `sensor_1`, `sensor_2`, `sensor_3` with entity
@@ -91,4 +97,35 @@ returned as a partial model.
 
 `tests/fixtures/federation.sysml` is the reference input: package `Soc`, two
 entity part defs, a three-occurrence `sensor`, and a scalar `gateway`, each with
-both ports.
+both ports. Two usages may author different scenarios:
+
+```sysml
+part def Federation {
+  part sensor : Sensor [2] {
+    attribute site          : Integer = 2;
+    attribute application   : Integer = 7;
+    attribute entity        : Integer = 100;
+    attribute marking       : String  = "UNCLASSIFIED";
+    attribute telemetryPort : Integer = 5100;
+    attribute controlPort   : Integer = 6100;
+    attribute command       : String  = "sensor-agent";
+    attribute cwd           : String  = "/opt/sensor";
+    attribute scenario      : String  = "cruise";
+  }
+
+  part gateway : Gateway {
+    attribute site          : Integer = 1;
+    attribute application   : Integer = 9;
+    attribute entity        : Integer = 200;
+    attribute marking       : String  = "UNCLASSIFIED";
+    attribute telemetryPort : Integer = 5200;
+    attribute controlPort   : Integer = 6200;
+    attribute command       : String  = "gateway";
+    attribute cwd           : String  = "/opt/gateway";
+    attribute scenario      : String  = "descent";
+  }
+}
+```
+
+Both `sensor` occurrences (`sensor_1`, `sensor_2`) carry `"cruise"`; `gateway`
+carries `"descent"`.

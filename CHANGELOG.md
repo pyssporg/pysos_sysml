@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-19
+
+### Added
+
+- Optional `scenario : String` attribute on a `Federation` part usage. It is
+  one authored value per usage and applies to every occurrence; unknown
+  attributes are still rejected.
+- `InstanceDef.scenario: str | None` in the setup IR.
+- Producer environment channel in each lowered occurrence: `env` now always
+  carries `PYSOS_TELEMETRY_PORT` and `PYSOS_CONTROL_PORT` as decimal text, plus
+  `PYSOS_SCENARIO` when a scenario is authored. `pysos_coordinate` continues to
+  pass `env` through opaquely as a string-to-string map.
+
+### Changed
+
+- Regenerated `tests/fixtures/two_instances.manifest.json`; its `env` is no
+  longer empty.
+- Documented the environment contract in
+  `docs/breakdown/02-architecture/manifest.md` and extended the SysML subset
+  leaf with the optional attribute and a two-usage example.
+
 ## [0.1.1] - 2026-11-19
 
 ### Changed

@@ -72,6 +72,24 @@ def _occurrence_name(instance: InstanceDef, index: int) -> str:
     return f"{instance.name}_{index + 1}"
 
 
+def _env(instance: InstanceDef, index: int) -> dict[str, str]:
+    """Producer-owned environment channel for occurrence *index*.
+
+    ``pysos_coordinate`` passes ``env`` through opaquely: it layers the mapping
+    over the supervisor's environment and validates only that it is
+    string-to-string. The setup layer therefore owns these key names and emits
+    decimal spellings for the ports; the launched producer reads its scenario
+    and endpoints from its own environment.
+    """
+    env = {
+        "PYSOS_TELEMETRY_PORT": str(instance.telemetry_ports[index].port),
+        "PYSOS_CONTROL_PORT": str(instance.control_ports[index].port),
+    }
+    if instance.scenario is not None:
+        env["PYSOS_SCENARIO"] = instance.scenario
+    return env
+
+
 def to_manifest(federation: FederationDef) -> dict[str, Any]:
     """Return the schema-1 manifest dictionary for *federation*.
 
@@ -79,8 +97,9 @@ def to_manifest(federation: FederationDef) -> dict[str, Any]:
     ``pysos_coordinate``: top-level ``schema``, ``name``, ``timing`` and
     ``instances``; each instance carries ``name``, ``command`` (argv),
     ``cwd``, ``env``, ``entities``, ``telemetry``, ``control`` and
-    ``startup_timeout``. ``env`` is reserved and empty in 0.1.0; the subset has
-    no environment attributes.
+    ``startup_timeout``. ``env`` is the producer-owned channel and always
+    carries ``PYSOS_TELEMETRY_PORT`` and ``PYSOS_CONTROL_PORT``, plus
+    ``PYSOS_SCENARIO`` when the instance authors a scenario.
     """
     instances: list[dict[str, Any]] = []
     for instance in federation.instances:
@@ -92,7 +111,7 @@ def to_manifest(federation: FederationDef) -> dict[str, Any]:
                     "name": _occurrence_name(instance, index),
                     "command": list(argv),
                     "cwd": instance.cwd,
-                    "env": {},
+                    "env": _env(instance, index),
                     "entities": [_entity(instance.entities[index])],
                     "telemetry": [_endpoint(instance.telemetry_ports[index])],
                     "control": [_endpoint(instance.control_ports[index])],
