@@ -36,7 +36,7 @@ dev = [
   "build",
   # Schema owner, used only by the optional cross-repo round-trip test. Pinned
   # to the release wheel for the same reason as the parser above.
-  "pysos-coordinate @ https://github.com/pyssporg/pysos_coordinate/releases/download/v0.2.1/pysos_coordinate-0.2.1-py3-none-any.whl",
+  "pysos-coordinate @ https://github.com/pyssporg/pysos_coordinate/releases/download/v0.3.0/pysos_coordinate-0.3.0-py3-none-any.whl",
 ]
 
 [project.scripts]
