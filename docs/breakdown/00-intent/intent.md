@@ -46,7 +46,7 @@ setup language. It emits data; it does not run anything.
 - **Lowering is pure and deterministic.** `to_manifest` reads the IR and
   returns data. `dump_manifest` sorts keys, indents by two spaces, and ends with
   one newline.
-- **The manifest schema is owned elsewhere.** `pysos_simulate` owns schema 1;
+- **The manifest schema is owned elsewhere.** `pysos_coordinate` owns schema 1;
   this package targets it and documents the version it emits.
 
 ## Non-goals
@@ -66,7 +66,7 @@ setup language. It emits data; it does not run anything.
 | --- | --- | --- |
 | `pycps_sysml2` | SysML v2 dialect parser and architecture IR | direct dependency, pinned wheel |
 | `pysos_sysml` | setup IR, loader, manifest lowering, CLI | this package |
-| `pysos_simulate` | owns manifest schema 1 and executes it | consumer of the manifest |
+| `pysos_coordinate` | owns manifest schema 1 and executes it | consumer of the manifest |
 
 The arrows are one-way: `pysos_sysml` imports `pycps_sysml2`, never the
-reverse, and never imports `pysos_simulate`.
+reverse, and never imports `pysos_coordinate`.

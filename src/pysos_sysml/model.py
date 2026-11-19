@@ -2,7 +2,7 @@
 
 These dataclasses are the contract between :mod:`pysos_sysml.loader` and
 :mod:`pysos_sysml.lower` and nothing else. They deliberately do not import
-``pysos_simulate`` (or any other execution package): the manifest dictionary
+``pysos_coordinate`` (or any other execution package): the manifest dictionary
 crosses that boundary, not a shared type.
 
 A federation is authored once in SysML and may contain several instances of

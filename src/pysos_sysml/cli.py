@@ -33,14 +33,19 @@ def _counts(federation) -> str:
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="pysos-sysml",
-        description="Validate a SysML system-of-systems setup or lower it to a manifest.",
+        description=(
+            "Validate a SysML system-of-systems setup or lower it to the "
+            "schema-1 manifest owned by pysos_coordinate."
+        ),
     )
     commands = parser.add_subparsers(dest="command", required=True)
 
     validate = commands.add_parser("validate", help="parse and lower, then print counts")
     validate.add_argument("file", type=Path, help="setup .sysml file")
 
-    manifest = commands.add_parser("manifest", help="emit the schema-1 execution manifest")
+    manifest = commands.add_parser(
+        "manifest", help="emit the schema-1 manifest owned by pysos_coordinate"
+    )
     manifest.add_argument("file", type=Path, help="setup .sysml file")
     manifest.add_argument(
         "-o",

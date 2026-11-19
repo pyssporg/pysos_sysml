@@ -13,9 +13,9 @@ status: current
 
 | Module | Responsibility | May import | Must not import |
 | --- | --- | --- | --- |
-| `pysos_sysml.model` | setup IR: four plain dataclasses | stdlib | `pycps_sysml2`, `pysos_simulate`, anything else |
-| `pysos_sysml.loader` | call `pycps_sysml2.load`, enforce the subset | stdlib, `pycps_sysml2`, `model` | `pysos_simulate` |
-| `pysos_sysml.lower` | IR → schema-1 manifest dict / JSON | stdlib, `model` | `pycps_sysml2`, `pysos_simulate` |
+| `pysos_sysml.model` | setup IR: four plain dataclasses | stdlib | `pycps_sysml2`, `pysos_coordinate`, anything else |
+| `pysos_sysml.loader` | call `pycps_sysml2.load`, enforce the subset | stdlib, `pycps_sysml2`, `model` | `pysos_coordinate` |
+| `pysos_sysml.lower` | IR → schema-1 manifest dict / JSON | stdlib, `model` | `pycps_sysml2`, `pysos_coordinate` |
 | `pysos_sysml.cli` | `validate` and `manifest` commands | stdlib, `loader`, `lower` | anything else |
 
 The IR is the stable center: the loader may know the parser, the lowerer may
@@ -65,5 +65,5 @@ pycps_sysml2 ──► pysos_sysml.loader ──► pysos_sysml.model
                       pysos_sysml.cli ───────┘
 ```
 
-`tests/test_lower.py` asserts that lowering imports no `pysos_simulate` module;
+`tests/test_lower.py` asserts that lowering imports no `pysos_coordinate` module;
 `tests/test_loader.py` exercises the parser boundary through the fixture.

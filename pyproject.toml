@@ -30,7 +30,13 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8", "ruff>=0.6", "build"]
+dev = [
+  "pytest>=8",
+  "ruff>=0.6",
+  "build",
+  # Schema owner, used only by the optional cross-repo round-trip test.
+  "pysos-coordinate @ git+https://github.com/pyssporg/pysos_coordinate.git@v0.2.0",
+]
 
 [project.scripts]
 pysos-sysml = "pysos_sysml.cli:main"
@@ -62,7 +68,7 @@ markers = [
   "level_static: source and import-graph rules",
   "level_unit: one module's logic with fabricated inputs",
   "level_component: files and deterministic output written by one module",
-  "level_contract: the seam to the schema owned by pysos_simulate",
+  "level_contract: the seam to the schema owned by pysos_coordinate",
   "level_system: the CLI driven end to end",
   "slow: too slow for the default suite",
 ]

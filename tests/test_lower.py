@@ -12,7 +12,7 @@ from pysos_sysml.model import EndpointDef, EntityDef, FederationDef, InstanceDef
 FIXTURE = Path(__file__).parent / "fixtures" / "federation.sysml"
 
 
-def _instance(name, port, entity, command, cwd):
+def _instance(name, port, entity, command, cwd, site, application):
     return {
         "name": name,
         "command": command,
@@ -20,14 +20,15 @@ def _instance(name, port, entity, command, cwd):
         "env": {},
         "entities": [
             {
-                "site": 2 if command == "sensor-agent" else 1,
-                "application": 7 if command == "sensor-agent" else 9,
-                "entity": entity,
+                "site": str(site),
+                "application": str(application),
+                "entity": str(entity),
                 "marking": "UNCLASSIFIED",
             }
         ],
-        "telemetry": [{"name": "telemetry", "port": port, "host": "127.0.0.1"}],
-        "control": [{"name": "control", "port": port + 1000, "host": "127.0.0.1"}],
+        "telemetry": [{"port": port, "host": "127.0.0.1"}],
+        "control": [{"port": port + 1000, "host": "127.0.0.1"}],
+        "startup_timeout": 30.0,
     }
 
 
@@ -35,11 +36,13 @@ def _instance(name, port, entity, command, cwd):
 def test_manifest_matches_schema_one_exactly():
     assert to_manifest(load_federation(FIXTURE)) == {
         "schema": 1,
+        "name": "Soc",
+        "timing": "wall_clock",
         "instances": [
-            _instance("sensor_1", 5100, 100, "sensor-agent", "/opt/sensor"),
-            _instance("sensor_2", 5101, 101, "sensor-agent", "/opt/sensor"),
-            _instance("sensor_3", 5102, 102, "sensor-agent", "/opt/sensor"),
-            _instance("gateway", 5200, 200, "gateway", "/opt/gateway"),
+            _instance("sensor_1", 5100, 100, ["sensor-agent"], "/opt/sensor", 2, 7),
+            _instance("sensor_2", 5101, 101, ["sensor-agent"], "/opt/sensor", 2, 7),
+            _instance("sensor_3", 5102, 102, ["sensor-agent"], "/opt/sensor", 2, 7),
+            _instance("gateway", 5200, 200, ["gateway"], "/opt/gateway", 1, 9),
         ],
     }
 
@@ -48,6 +51,8 @@ def test_manifest_matches_schema_one_exactly():
 def test_occurrence_expansion_and_reserved_env():
     manifest = to_manifest(load_federation(FIXTURE))
     assert manifest["schema"] == 1
+    assert manifest["name"] == "Soc"
+    assert manifest["timing"] == "wall_clock"
     assert [entry["name"] for entry in manifest["instances"]] == [
         "sensor_1",
         "sensor_2",
@@ -55,6 +60,9 @@ def test_occurrence_expansion_and_reserved_env():
         "gateway",
     ]
     assert all(entry["env"] == {} for entry in manifest["instances"])
+    assert all(
+        isinstance(entry["command"], list) for entry in manifest["instances"]
+    )
 
 
 @pytest.mark.level_component
@@ -90,8 +98,53 @@ def test_misaligned_occurrence_lists_are_a_programming_error():
         to_manifest(federation)
 
 
+@pytest.mark.level_unit
+def test_command_string_becomes_argv_without_a_shell():
+    federation = FederationDef(
+        name="Soc",
+        instances=[
+            InstanceDef(
+                name="node",
+                part_def="Node",
+                count=1,
+                entities=[EntityDef(site=1, application=1, entity=1, marking="U")],
+                telemetry_ports=[EndpointDef(name="telemetry", port=1)],
+                control_ports=[EndpointDef(name="control", port=2)],
+                command='run --label "two words"',
+                cwd="/",
+            )
+        ],
+    )
+    assert to_manifest(federation)["instances"][0]["command"] == [
+        "run",
+        "--label",
+        "two words",
+    ]
+
+
+@pytest.mark.level_unit
+def test_empty_command_is_rejected_after_tokenizing():
+    federation = FederationDef(
+        name="Soc",
+        instances=[
+            InstanceDef(
+                name="node",
+                part_def="Node",
+                count=1,
+                entities=[EntityDef(site=1, application=1, entity=1, marking="U")],
+                telemetry_ports=[EndpointDef(name="telemetry", port=1)],
+                control_ports=[EndpointDef(name="control", port=2)],
+                command="   ",
+                cwd="/",
+            )
+        ],
+    )
+    with pytest.raises(ValueError, match="command must not be empty"):
+        to_manifest(federation)
+
+
 @pytest.mark.level_static
-def test_lowering_never_imports_pysos_simulate():
+def test_lowering_never_imports_the_schema_owner():
     tree = ast.parse(Path(pysos_sysml.lower.__file__).read_text(encoding="utf-8"))
     modules = []
     for node in ast.walk(tree):
@@ -99,4 +152,5 @@ def test_lowering_never_imports_pysos_simulate():
             modules.extend(alias.name for alias in node.names)
         elif isinstance(node, ast.ImportFrom) and node.module:
             modules.append(node.module)
-    assert not [name for name in modules if name.split(".")[0] == "pysos_simulate"]
+    forbidden = {"pysos_coordinate", "pysos_simulate"}
+    assert not [name for name in modules if name.split(".")[0] in forbidden]

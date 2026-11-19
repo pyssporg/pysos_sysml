@@ -4,7 +4,7 @@ System-of-systems simulation setup in SysML v2, lowered to an execution
 manifest.
 
 `pysos-sysml` reads one setup file, builds a small self-contained IR, and emits
-the schema-1 manifest owned by `pysos_simulate`. It is a thin layer over
+the schema-1 manifest owned by `pysos_coordinate`. It is a thin layer over
 [`pycps_sysml2`](https://github.com/pyssporg/pycps_sysml2): one parser, one
 documented subset, no artifacts, no execution.
 
@@ -82,10 +82,15 @@ Anything outside it raises `SysMLError` naming the offending qualified name.
 
 ## Manifest
 
-Schema version 1 is owned by `pysos_simulate`; `pysos_sysml` produces the
-dictionary and documents the targeted version in
+Schema version 1 is owned by `pysos_coordinate`, whose
+[`manifest leaf`](https://github.com/pyssporg/pysos_coordinate/blob/main/docs/breakdown/02-architecture/manifest.md)
+is the normative contract. `pysos_sysml` conforms without importing it; the
+lowering and its conversions are documented in
 [`docs/breakdown/02-architecture/manifest.md`](docs/breakdown/02-architecture/manifest.md).
 Output is deterministic: sorted keys, two-space indent, one trailing newline.
+
+The `[dev]` extra includes `pysos-coordinate`, so `python -m pytest` also runs
+the round-trip test against the owner. Without it that test skips.
 
 ## Development
 

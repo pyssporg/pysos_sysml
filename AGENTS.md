@@ -29,12 +29,12 @@ become. It is the first document to read, not a reference of last resort.
 
 `pysos_sysml` is the setup layer of the `pysos_*` family. It reads a SysML v2
 federation declaration, builds `FederationDef` / `InstanceDef` / `EntityDef` /
-`EndpointDef`, and lowers it to the schema-1 manifest owned by `pysos_simulate`.
+`EndpointDef`, and lowers it to the schema-1 manifest owned by `pysos_coordinate`.
 
 - Modules: `model` (IR), `loader` (parser walk and subset enforcement), `lower`
   (manifest), `cli` (`validate`, `manifest`).
 - It sits between the parser and the runner: `pycps_sysml2` below,
-  `pysos_simulate` above.
+  `pysos_coordinate` above.
 
 ## Hard constraints
 
@@ -51,8 +51,8 @@ federation declaration, builds `FederationDef` / `InstanceDef` / `EntityDef` /
   `sysml-subset.md` is the complete accepted language. Anything outside it
   raises `SysMLError` with a qualified name and a path; nothing is ignored.
 - **The IR is self-contained.** `pysos_sysml.model` imports only the standard
-  library. Do not add `pysos_simulate` types to it.
-- **Do not import `pysos_simulate`.** The schema-1 dictionary is the contract;
+  library. Do not add `pysos_coordinate` types to it.
+- **Do not import `pysos_coordinate`.** The schema-1 dictionary is the contract;
   the owner is documented, not imported.
 - **`pycps_sysml2` is read-only.** If its API cannot express the subset,
   document the smallest extension in `02-architecture/layers.md` and work

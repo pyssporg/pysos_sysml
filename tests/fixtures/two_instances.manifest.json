@@ -1,0 +1,67 @@
+{
+  "instances": [
+    {
+      "command": [
+        "alpha-engine",
+        "--mode",
+        "fast"
+      ],
+      "control": [
+        {
+          "host": "127.0.0.1",
+          "port": 5651
+        }
+      ],
+      "cwd": "/opt/alpha",
+      "entities": [
+        {
+          "application": "10",
+          "entity": "1",
+          "marking": "UNCLASSIFIED",
+          "site": "1"
+        }
+      ],
+      "env": {},
+      "name": "alpha",
+      "startup_timeout": 30.0,
+      "telemetry": [
+        {
+          "host": "127.0.0.1",
+          "port": 5551
+        }
+      ]
+    },
+    {
+      "command": [
+        "beta-engine"
+      ],
+      "control": [
+        {
+          "host": "127.0.0.1",
+          "port": 5652
+        }
+      ],
+      "cwd": "/opt/beta",
+      "entities": [
+        {
+          "application": "11",
+          "entity": "2",
+          "marking": "UNCLASSIFIED",
+          "site": "1"
+        }
+      ],
+      "env": {},
+      "name": "beta",
+      "startup_timeout": 30.0,
+      "telemetry": [
+        {
+          "host": "127.0.0.1",
+          "port": 5552
+        }
+      ]
+    }
+  ],
+  "name": "TwoInstances",
+  "schema": 1,
+  "timing": "wall_clock"
+}

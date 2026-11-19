@@ -41,7 +41,7 @@ jobs:
           import pycps_sysml2
           import pysos_sysml
           assert pycps_sysml2.__version__ == "0.2.0"
-          assert "pysos_simulate" not in sys.modules, "manifest owner must not be imported"
+          assert "pysos_coordinate" not in sys.modules, "manifest owner must not be imported"
           heavy = {"numpy", "matplotlib", "pint"} & set(sys.modules)
           assert not heavy, f"setup layer imported {sorted(heavy)}"
           PY
