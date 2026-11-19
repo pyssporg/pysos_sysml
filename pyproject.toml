@@ -1,0 +1,68 @@
+[build-system]
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pysos-sysml"
+dynamic = ["version"]
+description = "System-of-systems simulation setup in SysML v2, lowered to an execution manifest."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [
+  { name = "pyssporg contributors" }
+]
+keywords = ["sysml", "system-of-systems", "simulation", "manifest"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Scientific/Engineering",
+]
+# One parser for the whole org. The wheel is a release asset, not a Git
+# checkout, so an install is reproducible and never tracks a moving branch.
+dependencies = [
+  "pycps-sysml2 @ https://github.com/pyssporg/pycps_sysml2/releases/download/v0.2.0/pycps_sysml2-0.2.0-py3-none-any.whl",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.6", "build"]
+
+[project.scripts]
+pysos-sysml = "pysos_sysml.cli:main"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+include-package-data = true
+
+[tool.setuptools.dynamic]
+version = { attr = "pysos_sysml.__version__" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["pysos_sysml*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+addopts = "-q"
+xfail_strict = true
+markers = [
+  "level_static: source and import-graph rules",
+  "level_unit: one module's logic with fabricated inputs",
+  "level_component: files and deterministic output written by one module",
+  "level_contract: the seam to the schema owned by pysos_simulate",
+  "level_system: the CLI driven end to end",
+  "slow: too slow for the default suite",
+]
