@@ -107,3 +107,17 @@ that file and, when the optional `[dev]` dependency `pysos-coordinate` is
 installed, parses it through the owner's public API and CLI in
 validation/port mode. Without the owner the test skips; lowering itself never
 imports it.
+
+## Drift check
+
+`pysos_sysml.manifest.render(path)` returns
+`manifest_json(load_federation(path))`, so it inherits the same formatting
+rules and never re-implements them. `check(path, expected_path)` compares those
+UTF-8 bytes with the file and returns `False` when the file is stale or
+missing.
+
+`pysos-sysml manifest FILE -o PATH --check` is the CI form. It requires `-o`,
+never writes the file, prints `ok: PATH is up to date` and exits 0 on an exact
+match, and treats drift (including a missing file) as exit 1 with a short
+stderr message plus a unified diff bounded to 20 lines. Usage errors and
+`SysMLError` keep exit 2.

@@ -29,6 +29,8 @@ https://github.com/pyssporg/pycps_sysml2/releases/download/v0.2.0/pycps_sysml2-0
 pysos-sysml validate tests/fixtures/federation.sysml
 pysos-sysml manifest tests/fixtures/federation.sysml -o manifest.json
 pysos-sysml manifest tests/fixtures/federation.sysml   # stdout
+pysos-sysml manifest tests/fixtures/two_instances.sysml \
+  -o tests/fixtures/two_instances.manifest.json --check
 ```
 
 ```text
@@ -40,14 +42,21 @@ telemetry endpoints: 4
 control endpoints: 4
 ```
 
+`--check` requires `-o/--output` and compares the current lowering with that
+file byte for byte, without writing it. A match prints
+`ok: PATH is up to date` and exits 0. Drift, including a missing file, exits
+1 with a short stderr message and a bounded unified diff (at most 20 lines).
+
 Library use:
 
 ```python
-from pysos_sysml import dump_manifest, load_federation, to_manifest
+from pysos_sysml import check, dump_manifest, load_federation, render, to_manifest
 
 federation = load_federation("federation.sysml")
 manifest = to_manifest(federation)
 dump_manifest(federation, "manifest.json")
+text = render("federation.sysml")       # current lowering as text
+current = check("federation.sysml", "manifest.json")  # byte comparison
 ```
 
 ## Setup subset

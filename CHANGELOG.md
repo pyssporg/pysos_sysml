@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-19
+
+### Added
+
+- `pysos-sysml manifest FILE -o PATH --check`: compares the current lowering
+  with the checked-in file byte for byte, prints `ok: PATH is up to date` and
+  exits 0 on a match, and exits 1 on drift (including a missing file) with a
+  unified diff bounded to 20 lines. `--check` without `-o` is a usage error
+  (exit 2); existing stdout and `-o` behaviour is unchanged.
+- `pysos_sysml.manifest.render` and `check` helpers; `render` reuses
+  `manifest_json`, so the formatting rules have one owner.
+- CLI tests for exact match, stale content, a missing expected file, the usage
+  error, and the checked-in fixture; library tests for the helpers.
+
 ## [0.2.1] - 2026-11-19
 
 ### Changed
