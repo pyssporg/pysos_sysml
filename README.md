@@ -16,11 +16,11 @@ Python 3.10 or newer.
 python -m pip install -e ".[dev]"
 ```
 
-The runtime dependency is the pinned `pycps_sysml2` 0.2.0 wheel, fetched from
+The runtime dependency is the pinned `pycps_sysml2` 0.3.0 wheel, fetched from
 its GitHub release:
 
 ```text
-https://github.com/pyssporg/pycps_sysml2/releases/download/v0.2.0/pycps_sysml2-0.2.0-py3-none-any.whl
+https://github.com/pyssporg/pycps_sysml2/releases/download/v0.3.0/pycps_sysml2-0.3.0-py3-none-any.whl
 ```
 
 ## Use

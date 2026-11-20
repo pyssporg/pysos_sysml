@@ -34,7 +34,7 @@ usages inside an anonymous part-usage body keep their **source text** as
 `Attribute.value` (`'2'`, `'"UNCLASSIFIED"'`). The loader performs the literal
 conversion and rejects anything that is not an integer or a quoted string.
 
-## pycps_sysml2 0.2.0 gap: part-usage multiplicity
+## pycps_sysml2 0.3.0 gap: part-usage multiplicity
 
 `PartUsage` has no `multiplicity` field. `Attribute` and `PortUsage` do, and
 the parser has a `multiplicity()` helper, but `load` never reads it for a part
