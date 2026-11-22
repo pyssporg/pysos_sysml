@@ -40,7 +40,7 @@ jobs:
           import sys
           import pycps_sysml2
           import pysos_sysml
-          assert pycps_sysml2.__version__ == "0.3.0"
+          assert pycps_sysml2.__version__ == "0.4.0"
           assert "pysos_coordinate" not in sys.modules, "manifest owner must not be imported"
           heavy = {"numpy", "matplotlib", "pint"} & set(sys.modules)
           assert not heavy, f"setup layer imported {sorted(heavy)}"

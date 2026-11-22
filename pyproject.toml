@@ -26,7 +26,7 @@ classifiers = [
 # One parser for the whole org. The wheel is a release asset, not a Git
 # checkout, so an install is reproducible and never tracks a moving branch.
 dependencies = [
-  "pycps-sysml2 @ https://github.com/pyssporg/pycps_sysml2/releases/download/v0.3.0/pycps_sysml2-0.3.0-py3-none-any.whl",
+  "pycps-sysml2 @ https://github.com/pyssporg/pycps_sysml2/releases/download/v0.4.0/pycps_sysml2-0.4.0-py3-none-any.whl",
 ]
 
 [project.optional-dependencies]
