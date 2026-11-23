@@ -22,6 +22,7 @@ __all__ = [
     "EntityDef",
     "FederationDef",
     "InstanceDef",
+    "LaunchDef",
 ]
 
 
@@ -45,6 +46,23 @@ class EntityDef:
 
 
 @dataclass
+class LaunchDef:
+    """The optional ``part launch : LaunchSpec`` of one authored instance.
+
+    ``mode``, ``readiness``, ``order`` and ``after_process`` are validated
+    vocabulary values; the loader normalizes ``timeout_s`` to a float. Lowering
+    turns the timeout into ``startup_timeout`` and the launch facts into
+    producer environment keys.
+    """
+
+    mode: str
+    readiness: str
+    timeout_s: float
+    order: int
+    after_process: str
+
+
+@dataclass
 class InstanceDef:
     """One authored ``part`` usage on ``Federation``.
 
@@ -52,7 +70,10 @@ class InstanceDef:
     each hold ``count`` entries in occurrence order. ``part_def`` is the bare
     name of the part definition the usage is typed by. ``scenario`` is the
     optional authored flight scenario; one value applies to every occurrence
-    and ``None`` means no scenario was authored.
+    and ``None`` means no scenario was authored. ``launch`` is the optional
+    launch vocabulary; ``aircraft`` is the resolved stored key of the
+    composition's ``aircraft`` usage (for example ``Aircraft::AircraftModel``),
+    or ``None`` when the entity declares none.
     """
 
     name: str
@@ -64,6 +85,8 @@ class InstanceDef:
     command: str
     cwd: str
     scenario: str | None = None
+    launch: LaunchDef | None = None
+    aircraft: str | None = None
 
 
 @dataclass

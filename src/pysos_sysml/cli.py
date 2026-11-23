@@ -46,11 +46,27 @@ def _parser() -> argparse.ArgumentParser:
 
     validate = commands.add_parser("validate", help="parse and lower, then print counts")
     validate.add_argument("file", type=Path, help="setup .sysml file")
+    validate.add_argument(
+        "--include",
+        action="append",
+        type=Path,
+        default=[],
+        metavar="PATH",
+        help="include a vocabulary/architecture root (repeatable)",
+    )
 
     manifest = commands.add_parser(
         "manifest", help="emit the schema-1 manifest owned by pysos_coordinate"
     )
     manifest.add_argument("file", type=Path, help="setup .sysml file")
+    manifest.add_argument(
+        "--include",
+        action="append",
+        type=Path,
+        default=[],
+        metavar="PATH",
+        help="include a vocabulary/architecture root (repeatable)",
+    )
     manifest.add_argument(
         "-o",
         "--output",
@@ -65,7 +81,9 @@ def _parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _report_drift(setup: Path, expected_path: Path) -> None:
+def _report_drift(
+    setup: Path, expected_path: Path, *, includes: Sequence[Path | str] = ()
+) -> None:
     try:
         expected = expected_path.read_text(encoding="utf-8", errors="replace")
     except FileNotFoundError:
@@ -75,7 +93,7 @@ def _report_drift(setup: Path, expected_path: Path) -> None:
     diff = list(
         difflib.unified_diff(
             expected.splitlines(),
-            render(setup).splitlines(),
+            render(setup, includes=includes).splitlines(),
             fromfile=str(expected_path),
             tofile="lowered",
             lineterm="",
@@ -93,17 +111,18 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.command == "manifest" and args.check and args.output is None:
         parser.error("--check requires -o/--output")
+    includes = tuple(args.include or ())
     try:
         if args.command == "validate":
-            print(_counts(load_federation(args.file)))
+            print(_counts(load_federation(args.file, includes=includes)))
             return 0
         if args.check:
-            if check(args.file, args.output):
+            if check(args.file, args.output, includes=includes):
                 print(f"ok: {args.output} is up to date")
                 return 0
-            _report_drift(args.file, args.output)
+            _report_drift(args.file, args.output, includes=includes)
             return 1
-        text = manifest_json(load_federation(args.file))
+        text = manifest_json(load_federation(args.file, includes=includes))
     except SysMLError as exc:
         print(str(exc), file=sys.stderr)
         return 2

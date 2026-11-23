@@ -2,10 +2,13 @@ from pathlib import Path
 
 import pytest
 
-from pysos_sysml.loader import SysMLError, load_federation
+from pysos_sysml import SOS_FILE, LaunchDef, SysMLError, load_federation, sos_definitions
 from pysos_sysml.model import EndpointDef, EntityDef, FederationDef, InstanceDef
 
-FIXTURE = Path(__file__).parent / "fixtures" / "federation.sysml"
+FIXTURES = Path(__file__).parent / "fixtures"
+FIXTURE = FIXTURES / "federation.sysml"
+AIRCRAFT = FIXTURES / "aircraft.sysml"
+PRIMARY = FIXTURES / "aircraft_federation.sysml"
 
 
 def _variant(tmp_path: Path, old: str, new: str) -> Path:
@@ -16,9 +19,23 @@ def _variant(tmp_path: Path, old: str, new: str) -> Path:
     return path
 
 
-def _assert_error(path: Path, qualified: str, fragment: str) -> None:
+def _primary_variant(tmp_path: Path, old: str, new: str) -> Path:
+    text = PRIMARY.read_text(encoding="utf-8")
+    assert old in text
+    path = tmp_path / "bad.sysml"
+    path.write_text(text.replace(old, new, 1), encoding="utf-8")
+    return path
+
+
+def _assert_error(
+    path: Path,
+    qualified: str,
+    fragment: str,
+    *,
+    includes: tuple[Path, ...] = (),
+) -> None:
     with pytest.raises(SysMLError) as caught:
-        load_federation(path)
+        load_federation(path, includes=includes)
     assert caught.value.path == path
     message = str(caught.value)
     assert qualified in message
@@ -216,3 +233,248 @@ def test_federation_level_attribute_is_rejected(tmp_path):
         'part def Federation {\n    attribute fleet : String = "x";',
     )
     _assert_error(path, "Soc::Federation::fleet", "on Federation")
+
+
+@pytest.mark.level_unit
+def test_bundled_launch_vocabulary_is_real_package_data():
+    assert SOS_FILE == "sos.sysml"
+    vocabulary = sos_definitions()
+    assert vocabulary.is_file()
+    assert vocabulary.name == SOS_FILE
+
+
+@pytest.mark.level_unit
+def test_aircraft_and_launch_load_into_the_ir():
+    federation = load_federation(PRIMARY, includes=(AIRCRAFT,))
+    (jet,) = federation.instances
+    assert jet.part_def == "AircraftEntity"
+    assert jet.aircraft == "Aircraft::AircraftModel"
+    assert jet.launch == LaunchDef(
+        mode="supervised",
+        readiness="port_bound",
+        timeout_s=12.5,
+        order=2,
+        after_process="supervisor",
+    )
+    assert jet.scenario == "cruise"
+    assert jet.count == 1
+
+
+@pytest.mark.level_unit
+def test_existing_fixture_has_no_aircraft_or_launch():
+    sensor, gateway = load_federation(FIXTURE).instances
+    assert sensor.aircraft is None and sensor.launch is None
+    assert gateway.aircraft is None and gateway.launch is None
+
+
+@pytest.mark.level_unit
+def test_included_root_is_exempt_from_subset_member_checks():
+    # aircraft.sysml declares a port def and a specialized, port-bearing decoy.
+    federation = load_federation(PRIMARY, includes=(AIRCRAFT,))
+    assert federation.instances[0].aircraft == "Aircraft::AircraftModel"
+
+
+@pytest.mark.level_unit
+def test_missing_include_leaves_the_aircraft_type_unknown():
+    _assert_error(
+        PRIMARY,
+        "Flight::AircraftEntity::aircraft",
+        "unknown part definition 'AircraftModel'",
+    )
+
+
+@pytest.mark.level_unit
+def test_unknown_aircraft_type_is_rejected(tmp_path):
+    path = _primary_variant(
+        tmp_path, "part aircraft : AircraftModel;", "part aircraft : UnknownModel;"
+    )
+    _assert_error(
+        path,
+        "Flight::AircraftEntity::aircraft",
+        "unknown part definition 'UnknownModel'",
+        includes=(AIRCRAFT,),
+    )
+
+
+@pytest.mark.level_unit
+def test_launch_without_the_vocabulary_import_is_rejected(tmp_path):
+    path = _primary_variant(
+        tmp_path, "  private import PysosSoS::*;\n", ""
+    )
+    _assert_error(
+        path,
+        "Flight::Federation::jet::launch",
+        "unknown part definition 'LaunchSpec'",
+        includes=(AIRCRAFT,),
+    )
+
+
+@pytest.mark.level_unit
+def test_launch_missing_attribute_is_rejected(tmp_path):
+    path = _primary_variant(
+        tmp_path,
+        '        attribute readiness : String = "port_bound";\n',
+        "",
+    )
+    _assert_error(
+        path,
+        "Flight::Federation::jet::launch",
+        "missing required launch attribute 'readiness'",
+        includes=(AIRCRAFT,),
+    )
+
+
+@pytest.mark.level_unit
+def test_launch_unknown_attribute_is_rejected(tmp_path):
+    path = _primary_variant(
+        tmp_path,
+        '        attribute timeout_s : Real = 12.5;\n',
+        '        attribute timeout_s : Real = 12.5;\n'
+        '        attribute extra : String = "x";\n',
+    )
+    _assert_error(
+        path,
+        "Flight::Federation::jet::launch::extra",
+        "outside the launch vocabulary",
+        includes=(AIRCRAFT,),
+    )
+
+
+@pytest.mark.level_unit
+def test_launch_duplicate_attribute_is_rejected(tmp_path):
+    path = _primary_variant(
+        tmp_path,
+        '        attribute readiness : String = "port_bound";\n',
+        '        attribute readiness : String = "port_bound";\n'
+        '        attribute readiness : String = "log_line";\n',
+    )
+    _assert_error(
+        path,
+        "Flight::Federation::jet::launch::readiness",
+        "duplicate launch attribute",
+        includes=(AIRCRAFT,),
+    )
+
+
+@pytest.mark.level_unit
+def test_launch_wrong_attribute_type_is_rejected(tmp_path):
+    path = _primary_variant(
+        tmp_path,
+        "attribute timeout_s : Real = 12.5;",
+        "attribute timeout_s : Integer = 12;",
+    )
+    _assert_error(
+        path,
+        "Flight::Federation::jet::launch::timeout_s",
+        "must be typed Real",
+        includes=(AIRCRAFT,),
+    )
+
+
+@pytest.mark.level_unit
+def test_launch_unknown_readiness_is_rejected(tmp_path):
+    path = _primary_variant(
+        tmp_path,
+        'attribute readiness : String = "port_bound";',
+        'attribute readiness : String = "sometimes";',
+    )
+    _assert_error(
+        path,
+        "Flight::Federation::jet::launch::readiness",
+        "readiness must be one of",
+        includes=(AIRCRAFT,),
+    )
+
+
+@pytest.mark.level_unit
+def test_launch_zero_timeout_is_rejected(tmp_path):
+    path = _primary_variant(
+        tmp_path,
+        "attribute timeout_s : Real = 12.5;",
+        "attribute timeout_s : Real = 0.0;",
+    )
+    _assert_error(
+        path,
+        "Flight::Federation::jet::launch::timeout_s",
+        "greater than zero",
+        includes=(AIRCRAFT,),
+    )
+
+
+@pytest.mark.level_unit
+def test_launch_negative_order_is_rejected(tmp_path):
+    path = _primary_variant(
+        tmp_path,
+        "attribute order : Integer = 2;",
+        "attribute order : Integer = -1;",
+    )
+    _assert_error(
+        path,
+        "Flight::Federation::jet::launch::order",
+        "non-negative",
+        includes=(AIRCRAFT,),
+    )
+
+
+@pytest.mark.level_unit
+def test_launch_after_process_must_be_an_identifier(tmp_path):
+    path = _primary_variant(
+        tmp_path,
+        'attribute after_process : String = "supervisor";',
+        'attribute after_process : String = "not a name";',
+    )
+    _assert_error(
+        path,
+        "Flight::Federation::jet::launch::after_process",
+        "process/role identifier",
+        includes=(AIRCRAFT,),
+    )
+
+
+@pytest.mark.level_unit
+def test_second_nested_part_is_rejected(tmp_path):
+    path = _primary_variant(
+        tmp_path,
+        '        attribute timeout_s : Real = 12.5;\n',
+        '        attribute timeout_s : Real = 12.5;\n'
+        "      }\n"
+        "      part payload : AircraftModel {\n",
+    )
+    _assert_error(
+        path,
+        "Flight::Federation::jet::payload",
+        "part inside a Federation instance",
+        includes=(AIRCRAFT,),
+    )
+
+
+@pytest.mark.level_unit
+def test_launch_typed_by_a_divergent_definition_is_rejected(tmp_path):
+    path = _primary_variant(
+        tmp_path,
+        "  part def AircraftEntity {",
+        "  part def LaunchSpec {\n  }\n\n"
+        "  part def AircraftEntity {",
+    )
+    _assert_error(
+        path,
+        "Flight::Federation::jet::launch",
+        "launch definition must declare exactly",
+        includes=(AIRCRAFT,),
+    )
+
+
+@pytest.mark.level_unit
+def test_entity_definition_with_a_port_is_rejected(tmp_path):
+    path = _variant(
+        tmp_path,
+        "part def Sensor {\n  }",
+        "part def Sensor {\n    in port sig : AircraftSignal;\n  }",
+    )
+    _assert_error(path, "Soc::Sensor::sig", "port is outside")
+
+
+@pytest.mark.level_unit
+def test_entity_definition_variation_is_rejected(tmp_path):
+    path = _variant(tmp_path, "part def Sensor {", "variation part def Sensor {")
+    _assert_error(path, "Soc::Sensor", "variation is outside")

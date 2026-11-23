@@ -99,3 +99,33 @@ def test_manifest_check_without_output_is_a_usage_error(capsys):
         main(["manifest", str(FIXTURE), "--check"])
     assert excinfo.value.code == 2
     assert "--check requires -o/--output" in capsys.readouterr().err
+
+
+AIRCRAFT = FIXTURES / "aircraft.sysml"
+PRIMARY = FIXTURES / "aircraft_federation.sysml"
+
+
+@pytest.mark.level_system
+def test_validate_accepts_a_repeatable_include(capsys):
+    assert main(["validate", str(PRIMARY), "--include", str(AIRCRAFT)]) == 0
+    output = capsys.readouterr().out.splitlines()
+    assert output[0] == "federation: Flight"
+    assert output[1] == "instances: 1"
+
+
+@pytest.mark.level_system
+def test_validate_without_the_include_exits_two(tmp_path, capsys):
+    assert main(["validate", str(PRIMARY)]) == 2
+    assert "unknown part definition 'AircraftModel'" in capsys.readouterr().err
+
+
+@pytest.mark.level_system
+def test_manifest_forwards_includes_to_render_and_check(tmp_path, capsys):
+    target = tmp_path / "manifest.json"
+    args = ["manifest", str(PRIMARY), "--include", str(AIRCRAFT)]
+    assert main([*args, "-o", str(target)]) == 0
+    manifest = json.loads(target.read_text(encoding="utf-8"))
+    assert manifest["instances"][0]["startup_timeout"] == 12.5
+    assert main([*args, "-o", str(target), "--check"]) == 0
+    assert capsys.readouterr().out == f"ok: {target} is up to date\n"
+    assert check(PRIMARY, target, includes=(AIRCRAFT,))

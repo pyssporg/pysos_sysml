@@ -233,3 +233,47 @@ def test_lowering_never_imports_the_schema_owner():
             modules.append(node.module)
     forbidden = {"pysos_coordinate", "pysos_simulate"}
     assert not [name for name in modules if name.split(".")[0] in forbidden]
+
+
+AIRCRAFT = Path(__file__).parent / "fixtures" / "aircraft.sysml"
+PRIMARY = Path(__file__).parent / "fixtures" / "aircraft_federation.sysml"
+
+
+@pytest.mark.level_contract
+def test_launch_sets_timeout_and_producer_env_without_manifest_keys():
+    manifest = to_manifest(load_federation(PRIMARY, includes=(AIRCRAFT,)))
+    (entry,) = manifest["instances"]
+    assert entry["startup_timeout"] == 12.5
+    assert entry["env"]["PYSOS_LAUNCH_MODE"] == "supervised"
+    assert entry["env"]["PYSOS_READINESS"] == "port_bound"
+    assert entry["env"]["PYSOS_LAUNCH_ORDER"] == "2"
+    assert entry["env"]["PYSOS_AFTER_PROCESS"] == "supervisor"
+    assert entry["env"]["PYSOS_SCENARIO"] == "cruise"
+    assert set(entry) == {
+        "name",
+        "command",
+        "cwd",
+        "env",
+        "entities",
+        "telemetry",
+        "control",
+        "startup_timeout",
+    }
+    assert "aircraft" not in manifest_json(load_federation(PRIMARY, includes=(AIRCRAFT,)))
+    assert manifest["schema"] == 1
+
+
+@pytest.mark.level_unit
+def test_launch_absent_keeps_the_reserved_timeout_and_env():
+    manifest = to_manifest(load_federation(FIXTURE))
+    assert all(entry["startup_timeout"] == 30.0 for entry in manifest["instances"])
+    assert all("PYSOS_LAUNCH_MODE" not in entry["env"] for entry in manifest["instances"])
+    assert all("PYSOS_READINESS" not in entry["env"] for entry in manifest["instances"])
+
+
+@pytest.mark.level_unit
+def test_launch_lowering_is_deterministic():
+    federation = load_federation(PRIMARY, includes=(AIRCRAFT,))
+    first = manifest_json(federation)
+    assert first == manifest_json(federation)
+    assert first == json.dumps(to_manifest(federation), sort_keys=True, indent=2) + "\n"

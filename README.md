@@ -31,6 +31,8 @@ pysos-sysml manifest tests/fixtures/federation.sysml -o manifest.json
 pysos-sysml manifest tests/fixtures/federation.sysml   # stdout
 pysos-sysml manifest tests/fixtures/two_instances.sysml \
   -o tests/fixtures/two_instances.manifest.json --check
+pysos-sysml manifest tests/fixtures/aircraft_federation.sysml \
+  --include tests/fixtures/aircraft.sysml -o manifest.json
 ```
 
 ```text
@@ -42,17 +44,23 @@ telemetry endpoints: 4
 control endpoints: 4
 ```
 
-`--check` requires `-o/--output` and compares the current lowering with that
-file byte for byte, without writing it. A match prints
+`--include PATH` is repeatable on both `validate` and `manifest`; it adds a
+vocabulary or architecture root to the primary setup. The bundled
+`PysosSoS::LaunchSpec` vocabulary is always included and needs only
+`private import PysosSoS::*;` in the setup. `--check` requires `-o/--output`
+and compares the current lowering with that file byte for byte, without writing
+it. A match prints
 `ok: PATH is up to date` and exits 0. Drift, including a missing file, exits
 1 with a short stderr message and a bounded unified diff (at most 20 lines).
 
 Library use:
 
 ```python
-from pysos_sysml import check, dump_manifest, load_federation, render, to_manifest
+from pysos_sysml import check, dump_manifest, load_federation, render, sos_definitions, to_manifest
 
 federation = load_federation("federation.sysml")
+with_aircraft = load_federation("aircraft_federation.sysml", includes=("aircraft.sysml",))
+assert sos_definitions().is_file()        # bundled PysosSoS vocabulary
 manifest = to_manifest(federation)
 dump_manifest(federation, "manifest.json")
 text = render("federation.sysml")       # current lowering as text
@@ -61,31 +69,46 @@ current = check("federation.sysml", "manifest.json")  # byte comparison
 
 ## Setup subset
 
-A `package` contains empty entity `part def`s and one `part def Federation`
-whose `part` usages are the instances:
+A primary `package` imports vocabulary, declares composition `part def`s, and
+one `part def Federation` whose `part` usages are the instances. Included roots
+supply architecture such as the aircraft model; a composition records its
+`aircraft` and instances may carry the bundled launch vocabulary:
 
 ```sysml
-package Soc {
-  part def Sensor {
+package Flight {
+  private import Aircraft::*;
+  private import PysosSoS::*;
+
+  part def AircraftEntity {
+    part aircraft : AircraftModel;
   }
 
   part def Federation {
-    part sensor : Sensor [3] {
-      attribute site : Integer = 2;
-      attribute application : Integer = 7;
-      attribute entity : Integer = 100;
+    part jet : AircraftEntity [3] {
+      attribute site : Integer = 3;
+      attribute application : Integer = 4;
+      attribute entity : Integer = 300;
       attribute marking : String = "UNCLASSIFIED";
-      attribute telemetryPort : Integer = 5100;
-      attribute controlPort : Integer = 6100;
-      attribute command : String = "sensor-agent";
-      attribute cwd : String = "/opt/sensor";
+      attribute telemetryPort : Integer = 5300;
+      attribute controlPort : Integer = 6300;
+      attribute command : String = "jet-engine";
+      attribute cwd : String = "/opt/jet";
+      part launch : LaunchSpec {
+        attribute mode : String = "supervised";
+        attribute readiness : String = "port_bound";
+        attribute timeout_s : Real = 12.5;
+        attribute order : Integer = 2;
+        attribute after_process : String = "supervisor";
+      }
     }
   }
 }
 ```
 
-`[3]` means three occurrences with consecutive entity ids and ports. The
-complete accepted language, its values, and its errors are in
+`[3]` means three occurrences with consecutive entity ids and ports. The launch
+timeout becomes the manifest `startup_timeout`; its mode and readiness become
+producer environment keys. The complete accepted language, its values, and its
+errors are in
 [`docs/breakdown/02-architecture/sysml-subset.md`](docs/breakdown/02-architecture/sysml-subset.md).
 Anything outside it raises `SysMLError` naming the offending qualified name.
 
@@ -108,7 +131,8 @@ python -m pytest
 ruff check src tests
 ```
 
-Layout: `src/pysos_sysml/{model,loader,lower,cli}.py`, tests under `tests/`.
+Layout: `src/pysos_sysml/{model,loader,lower,cli}.py` plus the bundled
+`src/pysos_sysml/sos.sysml`, tests under `tests/`.
 Read [`AGENTS.md`](AGENTS.md) and the
 [intent](docs/breakdown/00-intent/intent.md) before changing behaviour.
 

@@ -2,8 +2,8 @@
 id: INFO-002
 type: info
 title: Layers, Import Rules, And The Parser Boundary
-summary: Module responsibilities, the one-way imports, and the pycps_sysml2 multiplicity gap.
-date: 2026-11-19
+summary: Module responsibilities, the one-way imports, the parser boundary, and the pycps_sysml2 multiplicity gap.
+date: 2026-11-23
 status: current
 ---
 
@@ -13,8 +13,8 @@ status: current
 
 | Module | Responsibility | May import | Must not import |
 | --- | --- | --- | --- |
-| `pysos_sysml.model` | setup IR: four plain dataclasses | stdlib | `pycps_sysml2`, `pysos_coordinate`, anything else |
-| `pysos_sysml.loader` | call `pycps_sysml2.load`, enforce the subset | stdlib, `pycps_sysml2`, `model` | `pysos_coordinate` |
+| `pysos_sysml.model` | setup IR: five plain dataclasses | stdlib | `pycps_sysml2`, `pysos_coordinate`, anything else |
+| `pysos_sysml.loader` | call `pycps_sysml2.load`, ship the launch vocabulary, enforce the subset | stdlib, `pycps_sysml2`, `model` | `pysos_coordinate` |
 | `pysos_sysml.lower` | IR → schema-1 manifest dict / JSON | stdlib, `model` | `pycps_sysml2`, `pysos_coordinate` |
 | `pysos_sysml.cli` | `validate` and `manifest` commands | stdlib, `loader`, `lower` | anything else |
 
@@ -24,15 +24,24 @@ know the manifest schema, but neither leaks the other's vocabulary into
 
 ## Parser boundary
 
-`pycps_sysml2.load(path)` returns an `Architecture`: package name, ordered part
-definitions, and per-definition attributes, ports, parts, connections, and
-bindings. The loader walks only that public model. It does not import
-`pycps_sysml2.model.parser` and does not read sysmlpy trees.
+`pycps_sysml2.load(path, *includes)` returns an `Architecture`: package name,
+ordered part definitions, per-definition attributes, ports, parts, connections,
+and bindings, plus the import visibility map and the stored keys supplied by
+included roots. The loader always passes the bundled `sos.sysml` as the first
+included root, then any caller `--include` roots. It walks only that public
+model. It does not import `pycps_sysml2.model.parser` and does not read sysmlpy
+trees.
 
 Definition-level attributes are normalized by `pycps_sysml2`; attribute
 usages inside an anonymous part-usage body keep their **source text** as
-`Attribute.value` (`'2'`, `'"UNCLASSIFIED"'`). The loader performs the literal
-conversion and rejects anything that is not an integer or a quoted string.
+`Attribute.value` (`'2'`, `'"UNCLASSIFIED"'`, `'12.5'`). The loader performs the
+literal conversion with the standard library and rejects anything that is not
+an integer, a quoted string, or a real literal. Nested launch values use the
+same raw-text path.
+
+Included roots are vocabulary and architecture: the loader skips them in the
+primary definition and member checks but honours their import visibility.
+`Architecture.resolve_part` remains the only name resolver.
 
 ## pycps_sysml2 0.4.0 gap: part-usage multiplicity
 
@@ -54,6 +63,24 @@ which the documented subset requires.
 
 When `pycps_sysml2` gains the field, the adjunct should be deleted and the
 count read from `PartUsage.multiplicity`. The subset and manifest do not change.
+
+## Validation adjunct: duplicate launch attributes
+
+`pycps_sysml2` stores anonymous-body attributes in a dict, so a repeated
+`attribute readiness : String = ...;` keeps the last value and drops the
+earlier one. To keep "nothing is ignored", `loader._launch_duplicates` reads
+only the primary `Federation` body, bounds each `part launch` block by brace
+matching (quoted strings and comments skipped), and reports repeated attribute
+names. It recovers no values and is not a second grammar; the parser still owns
+structure, names, types, and values.
+
+## Bundled vocabulary
+
+`src/pysos_sysml/sos.sysml` is package data (`[tool.setuptools.package-data]`).
+`pysos_sysml.SOS_FILE` names it and `pysos_sysml.sos_definitions()` returns its
+real path, mirroring `pyssp_sysml_definitions.core_definitions()`. The loader
+adds it as an include root on every load; a primary model still has to import
+`PysosSoS::*` to see `LaunchSpec`.
 
 ## One-way dependencies
 

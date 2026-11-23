@@ -2,8 +2,8 @@
 id: INFO-004
 type: info
 title: Execution Manifest, Schema 1
-summary: How pysos_sysml lowers its IR to the schema-1 manifest owned by pysos_coordinate, and how determinism and the round trip are protected.
-date: 2026-11-19
+summary: How pysos_sysml lowers its IR to the schema-1 manifest owned by pysos_coordinate, including launch timeout and producer env, and how determinism and the round trip are protected.
+date: 2026-11-23
 status: current
 ---
 
@@ -30,14 +30,16 @@ not import the owner and does not execute the result.
       "env": {
         "PYSOS_TELEMETRY_PORT": "5551",
         "PYSOS_CONTROL_PORT": "5651",
-        "PYSOS_SCENARIO": "cruise"
+        "PYSOS_SCENARIO": "cruise",
+        "PYSOS_LAUNCH_MODE": "supervised",
+        "PYSOS_READINESS": "port_bound"
       },
       "entities": [
         {"site": "1", "application": "10", "entity": "1", "marking": "UNCLASSIFIED"}
       ],
       "telemetry": [{"host": "127.0.0.1", "port": 5551}],
       "control": [{"host": "127.0.0.1", "port": 5651}],
-      "startup_timeout": 30.0
+      "startup_timeout": 12.5
     }
   ]
 }
@@ -57,11 +59,11 @@ instance carries exactly `name`, `command`, `cwd`, `env`, `entities`,
 | `instances[].name` | instance name, or `<name>_<i>` when multiplicity > 1 |
 | `instances[].command` | `command` String tokenized to argv with `shlex.split`; no shell runs |
 | `instances[].cwd` | `cwd` String |
-| `instances[].env` | producer-owned channel: occurrence ports as decimal text, plus `PYSOS_SCENARIO` when authored |
+| `instances[].env` | producer-owned channel: occurrence ports as decimal text, plus `PYSOS_SCENARIO` when authored plus `PYSOS_LAUNCH_MODE`, `PYSOS_READINESS`, `PYSOS_LAUNCH_ORDER` and `PYSOS_AFTER_PROCESS` when a launch is authored |
 | `instances[].entities` | one `EntityDef`: `site`, `application`, `entity` as decimal text, plus `marking` |
 | `instances[].telemetry` | one `EndpointDef`: `host`, `port` only |
 | `instances[].control` | one `EndpointDef`: `host`, `port` only |
-| `instances[].startup_timeout` | reserved default `30.0`; the subset has no such attribute |
+| `instances[].startup_timeout` | authored `launch.timeout_s` when present, else the reserved default `30.0` |
 
 The SysML attributes `site`, `application`, and `entity` are `Integer`, but the
 manifest's `EntityRef` identity is text, so lowering emits their decimal spelling.
@@ -73,7 +75,9 @@ literal tokens because no shell is involved. The IR keeps `EndpointDef.name`
 One manifest instance is one process occurrence. Its entity id and both ports
 are the occurrence's arithmetic values from
 `02-architecture/sysml-subset.md`, so a three-occurrence instance produces
-three entries, each with one entity and one endpoint per channel.
+three entries, each with one entity and one endpoint per channel. The IR keeps
+the resolved aircraft definition (for example `Aircraft::AircraftModel`) and
+the launch, but neither adds a manifest key beyond the env values above.
 
 ## Environment contract
 
@@ -86,9 +90,11 @@ occurrence:
 | `PYSOS_TELEMETRY_PORT` | occurrence telemetry port, decimal text | always |
 | `PYSOS_CONTROL_PORT` | occurrence control port, decimal text | always |
 | `PYSOS_SCENARIO` | authored `scenario` value, verbatim | only when authored |
+| `PYSOS_LAUNCH_MODE` | authored `launch.mode` value, verbatim | only when a launch is authored |
+| `PYSOS_READINESS` | authored `launch.readiness` value, verbatim | only when a launch is authored |
 
-The scenario is authored once per part usage, so every occurrence of that usage
-carries the same `PYSOS_SCENARIO`; the two port keys differ per occurrence.
+The scenario and launch are authored once per part usage, so every occurrence
+of that usage carries the same values; the two port keys differ per occurrence.
 `env` has no other keys. `pysos_coordinate` passes `env` through opaquely: it
 layers the mapping over `os.environ` and validates only that keys and values are
 strings, so these key names are this package's contract with the producer, not

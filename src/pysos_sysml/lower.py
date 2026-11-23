@@ -87,6 +87,11 @@ def _env(instance: InstanceDef, index: int) -> dict[str, str]:
     }
     if instance.scenario is not None:
         env["PYSOS_SCENARIO"] = instance.scenario
+    if instance.launch is not None:
+        env["PYSOS_LAUNCH_MODE"] = instance.launch.mode
+        env["PYSOS_READINESS"] = instance.launch.readiness
+        env["PYSOS_LAUNCH_ORDER"] = str(instance.launch.order)
+        env["PYSOS_AFTER_PROCESS"] = instance.launch.after_process
     return env
 
 
@@ -99,7 +104,10 @@ def to_manifest(federation: FederationDef) -> dict[str, Any]:
     ``cwd``, ``env``, ``entities``, ``telemetry``, ``control`` and
     ``startup_timeout``. ``env`` is the producer-owned channel and always
     carries ``PYSOS_TELEMETRY_PORT`` and ``PYSOS_CONTROL_PORT``, plus
-    ``PYSOS_SCENARIO`` when the instance authors a scenario.
+    ``PYSOS_SCENARIO`` when the instance authors a scenario and
+    ``PYSOS_LAUNCH_MODE`` / ``PYSOS_READINESS`` / ``PYSOS_LAUNCH_ORDER`` /
+    ``PYSOS_AFTER_PROCESS`` when it authors a launch. ``startup_timeout`` is
+    the launch ``timeout_s`` when present, else the reserved default.
     """
     instances: list[dict[str, Any]] = []
     for instance in federation.instances:
@@ -115,7 +123,11 @@ def to_manifest(federation: FederationDef) -> dict[str, Any]:
                     "entities": [_entity(instance.entities[index])],
                     "telemetry": [_endpoint(instance.telemetry_ports[index])],
                     "control": [_endpoint(instance.control_ports[index])],
-                    "startup_timeout": DEFAULT_STARTUP_TIMEOUT,
+                    "startup_timeout": (
+                        instance.launch.timeout_s
+                        if instance.launch is not None
+                        else DEFAULT_STARTUP_TIMEOUT
+                    ),
                 }
             )
     return {

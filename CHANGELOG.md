@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `pysos_sysml.sos.sysml`: bundled `PysosSoS::LaunchSpec` vocabulary, shipped
+  as package data and exposed as `SOS_FILE` and `sos_definitions()`.
+- `load_federation(path, *, includes=())` and repeatable
+  `--include PATH` on `pysos-sysml validate` and `manifest`. Imports and
+  included roots are accepted; included definitions are exempt from primary
+  subset member checks while staying visible only through their import.
+- Primary composition part defs may declare typed `part <name> : <Type>`
+  usages; an `aircraft` usage records its resolved key on the IR.
+- Optional nested `part launch : LaunchSpec` on an instance, validated against
+  the shared five-attribute vocabulary (`mode`, `readiness`, `timeout_s`,
+  `order`, `after_process`) and lowered to `startup_timeout` plus
+  `PYSOS_LAUNCH_MODE`, `PYSOS_READINESS`, `PYSOS_LAUNCH_ORDER` and
+  `PYSOS_AFTER_PROCESS`.
+- `PysosSoS::Application` base definition (roles, command, cwd, nested launch)
+  for host-side models that specialize it.
+- `LaunchDef` and `InstanceDef.launch` / `InstanceDef.aircraft` in the IR.
+- Fixtures and tests for aircraft composition, the bundled launch vocabulary,
+  include forwarding, duplicate launch attributes, and the new error cases.
+
+### Changed
+
+- The documented subset now covers imports, included roots, composition part
+  usages, and the launch vocabulary; primary-entity and included-root rules are
+  stated separately.
+- `manifest.render` and `manifest.check` accept the same `includes` keyword as
+  the loader, so `--check` works with includes.
+
 ## [0.3.1] - 2026-11-22
 
 ### Changed
