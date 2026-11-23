@@ -14,6 +14,7 @@ the per-occurrence lists stay aligned with it: ``entities[i]``,
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -67,13 +68,19 @@ class InstanceDef:
     """One authored ``part`` usage on ``Federation``.
 
     ``count`` is the declared multiplicity (1 when omitted). The three lists
-    each hold ``count`` entries in occurrence order. ``part_def`` is the bare
-    name of the part definition the usage is typed by. ``scenario`` is the
-    optional authored flight scenario; one value applies to every occurrence
-    and ``None`` means no scenario was authored. ``launch`` is the optional
-    launch vocabulary; ``aircraft`` is the resolved stored key of the
-    composition's ``aircraft`` usage (for example ``Aircraft::AircraftModel``),
-    or ``None`` when the entity declares none.
+    each hold ``count`` entries in occurrence order; ``control_ports`` may be
+    empty when the setup has no control channel. ``part_def`` is the bare name
+    of the part definition the usage is typed by. ``scenario`` is the optional
+    authored flight scenario string from the schema-1 body; one value applies
+    to every occurrence and ``None`` means no scenario was authored.
+    ``scenario_values``, ``identity_values``, ``transport_values``,
+    ``application_values`` and ``experiment_values`` expose a promoted
+    variant's/application's effective members as read-only name-to-value
+    mappings; none of them is lowered. ``waypoint_frame`` is the application's
+    ``waypointFrame`` value when present. ``launch`` is the optional launch
+    vocabulary; ``aircraft`` is the resolved stored key of the model the
+    variant specializes (for example ``Aircraft::AircraftModel``), or ``None``
+    when the entity declares none.
     """
 
     name: str
@@ -87,6 +94,12 @@ class InstanceDef:
     scenario: str | None = None
     launch: LaunchDef | None = None
     aircraft: str | None = None
+    scenario_values: Mapping[str, Any] = field(default_factory=dict)
+    identity_values: Mapping[str, Any] = field(default_factory=dict)
+    transport_values: Mapping[str, Any] = field(default_factory=dict)
+    application_values: Mapping[str, Any] = field(default_factory=dict)
+    experiment_values: Mapping[str, Any] = field(default_factory=dict)
+    waypoint_frame: str | None = None
 
 
 @dataclass

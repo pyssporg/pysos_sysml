@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 
 from pysos_sysml import SOS_FILE, LaunchDef, SysMLError, load_federation, sos_definitions
+from pysos_sysml.lower import to_manifest
 from pysos_sysml.model import EndpointDef, EntityDef, FederationDef, InstanceDef
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -102,6 +103,31 @@ def test_multiplicity_drives_count_and_the_aligned_lists():
     assert [endpoint.port for endpoint in sensor.telemetry_ports] == [5100, 5101, 5102]
     assert [endpoint.port for endpoint in sensor.control_ports] == [6100, 6101, 6102]
     assert (gateway.count, gateway.entities[0].entity) == (1, 200)
+
+
+@pytest.mark.level_unit
+def test_control_port_is_optional_and_absent_control_is_not_lowered(tmp_path):
+    text = FIXTURE.read_text(encoding="utf-8")
+    assert "      attribute controlPort : Integer = 6100;\n" in text
+    path = tmp_path / "no-control.sysml"
+    path.write_text(
+        text.replace("      attribute controlPort : Integer = 6100;\n", "", 1),
+        encoding="utf-8",
+    )
+    federation = load_federation(path)
+    sensor = federation.instances[0]
+    assert sensor.control_ports == []
+
+    manifest = to_manifest(federation)
+    sensor_entries = [
+        entry for entry in manifest["instances"] if entry["name"].startswith("sensor")
+    ]
+    assert all("control" not in entry for entry in sensor_entries)
+    assert all("PYSOS_CONTROL_PORT" not in entry["env"] for entry in sensor_entries)
+    gateway = next(
+        entry for entry in manifest["instances"] if entry["name"] == "gateway"
+    )
+    assert "control" in gateway and "PYSOS_CONTROL_PORT" in gateway["env"]
 
 
 @pytest.mark.level_unit
@@ -465,13 +491,13 @@ def test_launch_typed_by_a_divergent_definition_is_rejected(tmp_path):
 
 
 @pytest.mark.level_unit
-def test_entity_definition_with_a_port_is_rejected(tmp_path):
+def test_entity_definition_port_type_must_resolve(tmp_path):
     path = _variant(
         tmp_path,
         "part def Sensor {\n  }",
         "part def Sensor {\n    in port sig : AircraftSignal;\n  }",
     )
-    _assert_error(path, "Soc::Sensor::sig", "port is outside")
+    _assert_error(path, "Soc::Sensor::sig", "unknown port definition 'AircraftSignal'")
 
 
 @pytest.mark.level_unit

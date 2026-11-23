@@ -57,13 +57,20 @@ def _argv(instance: InstanceDef) -> list[str]:
 
 
 def _check_alignment(instance: InstanceDef) -> None:
-    for field_name in ("entities", "telemetry_ports", "control_ports"):
+    for field_name in ("entities", "telemetry_ports"):
         actual = len(getattr(instance, field_name))
         if actual != instance.count:
             raise ValueError(
                 f"instance '{instance.name}' declares count {instance.count} "
                 f"but has {actual} {field_name}"
             )
+    # A setup either has a control channel for every occurrence or none at all.
+    controls = len(instance.control_ports)
+    if controls not in (0, instance.count):
+        raise ValueError(
+            f"instance '{instance.name}' declares count {instance.count} "
+            f"but has {controls} control_ports"
+        )
 
 
 def _occurrence_name(instance: InstanceDef, index: int) -> str:
@@ -81,10 +88,9 @@ def _env(instance: InstanceDef, index: int) -> dict[str, str]:
     decimal spellings for the ports; the launched producer reads its scenario
     and endpoints from its own environment.
     """
-    env = {
-        "PYSOS_TELEMETRY_PORT": str(instance.telemetry_ports[index].port),
-        "PYSOS_CONTROL_PORT": str(instance.control_ports[index].port),
-    }
+    env = {"PYSOS_TELEMETRY_PORT": str(instance.telemetry_ports[index].port)}
+    if instance.control_ports:
+        env["PYSOS_CONTROL_PORT"] = str(instance.control_ports[index].port)
     if instance.scenario is not None:
         env["PYSOS_SCENARIO"] = instance.scenario
     if instance.launch is not None:
@@ -101,35 +107,39 @@ def to_manifest(federation: FederationDef) -> dict[str, Any]:
     The result is plain JSON-ready data with the keys required by
     ``pysos_coordinate``: top-level ``schema``, ``name``, ``timing`` and
     ``instances``; each instance carries ``name``, ``command`` (argv),
-    ``cwd``, ``env``, ``entities``, ``telemetry``, ``control`` and
-    ``startup_timeout``. ``env`` is the producer-owned channel and always
-    carries ``PYSOS_TELEMETRY_PORT`` and ``PYSOS_CONTROL_PORT``, plus
-    ``PYSOS_SCENARIO`` when the instance authors a scenario and
+    ``cwd``, ``env``, ``entities``, ``telemetry`` and ``startup_timeout``.
+    ``control`` is emitted only when the instance declares a control endpoint.
+    ``env`` is the producer-owned channel and always carries
+    ``PYSOS_TELEMETRY_PORT``, plus ``PYSOS_CONTROL_PORT`` when a control
+    endpoint exists and ``PYSOS_SCENARIO`` when the schema-1 instance authors a
+    scenario string. A promoted variant keeps its scenario in its SSP, so it
+    exposes ``scenario_values`` without lowering them.
     ``PYSOS_LAUNCH_MODE`` / ``PYSOS_READINESS`` / ``PYSOS_LAUNCH_ORDER`` /
-    ``PYSOS_AFTER_PROCESS`` when it authors a launch. ``startup_timeout`` is
-    the launch ``timeout_s`` when present, else the reserved default.
+    ``PYSOS_AFTER_PROCESS`` are emitted when the instance authors a launch.
+    ``startup_timeout`` is the launch ``timeout_s`` when present, else the
+    reserved default.
     """
     instances: list[dict[str, Any]] = []
     for instance in federation.instances:
         _check_alignment(instance)
         argv = _argv(instance)
         for index in range(instance.count):
-            instances.append(
-                {
-                    "name": _occurrence_name(instance, index),
-                    "command": list(argv),
-                    "cwd": instance.cwd,
-                    "env": _env(instance, index),
-                    "entities": [_entity(instance.entities[index])],
-                    "telemetry": [_endpoint(instance.telemetry_ports[index])],
-                    "control": [_endpoint(instance.control_ports[index])],
-                    "startup_timeout": (
-                        instance.launch.timeout_s
-                        if instance.launch is not None
-                        else DEFAULT_STARTUP_TIMEOUT
-                    ),
-                }
-            )
+            entry = {
+                "name": _occurrence_name(instance, index),
+                "command": list(argv),
+                "cwd": instance.cwd,
+                "env": _env(instance, index),
+                "entities": [_entity(instance.entities[index])],
+                "telemetry": [_endpoint(instance.telemetry_ports[index])],
+                "startup_timeout": (
+                    instance.launch.timeout_s
+                    if instance.launch is not None
+                    else DEFAULT_STARTUP_TIMEOUT
+                ),
+            }
+            if instance.control_ports:
+                entry["control"] = [_endpoint(instance.control_ports[index])]
+            instances.append(entry)
     return {
         "schema": SCHEMA_VERSION,
         "name": federation.name,
