@@ -30,6 +30,11 @@ AIRCRAFT = """package Aircraft {
 }
 """
 
+LOOKALIKE = """package Lookalike {
+  attribute def ParameterSet;
+}
+"""
+
 _VARIANTS = (
     ("RedInterceptor", "RED-1", 1, 5510),
     ("RedStriker", "RED-2", 2, 5512),
@@ -167,6 +172,31 @@ def test_local_markers_and_parameter_sets_are_accepted(tmp_path):
 
 
 @pytest.mark.level_unit
+def test_derived_parameter_set_chain_is_accepted(tmp_path):
+    path = _write_model(tmp_path)
+    text = path.read_text(encoding="utf-8")
+    text = text.replace(
+        "  attribute def RedInterceptorScenario :> ParameterSet {",
+        "  attribute def RedScenarioBase :> ParameterSet {\n"
+        "    attribute shared : Real = 1.0;\n"
+        "  }\n"
+        "  attribute def RedInterceptorScenario :> RedScenarioBase {",
+        1,
+    )
+    path.write_text(text, encoding="utf-8")
+    federation = load_federation(
+        path, includes=(tmp_path / "aircraft.sysml", core_definitions())
+    )
+    red = next(
+        instance
+        for instance in federation.instances
+        if instance.name == "red_interceptor"
+    )
+    assert red.scenario_values["shared"] == 1.0
+    assert red.scenario_values["initX_km"] == 0.0
+
+
+@pytest.mark.level_unit
 def test_attribute_definition_must_specialize_parameter_set(tmp_path):
     """A parameter set is recognized by its supertype, never by its name."""
     path = _variant_path(
@@ -180,6 +210,46 @@ def test_attribute_definition_must_specialize_parameter_set(tmp_path):
             includes=(tmp_path / "aircraft.sysml", core_definitions()),
         )
     assert "specializes ParameterSet" in str(caught.value)
+
+
+@pytest.mark.level_unit
+def test_parameter_set_marker_must_be_the_included_core_definition(tmp_path):
+    """A lookalike definition only shares the name; identity decides."""
+    path = _write_model(tmp_path)
+    text = path.read_text(encoding="utf-8")
+    text = text.replace(
+        "  private import PysspCore::*;",
+        "  private import PysspCore::*;\n  private import Lookalike::*;",
+        1,
+    ).replace(
+        "  attribute def RedInterceptorScenario :> ParameterSet {",
+        "  attribute def RedInterceptorScenario :> Lookalike::ParameterSet {",
+        1,
+    )
+    path.write_text(text, encoding="utf-8")
+    (tmp_path / "lookalike.sysml").write_text(LOOKALIKE, encoding="utf-8")
+
+    with pytest.raises(SysMLError) as caught:
+        load_federation(
+            path,
+            includes=(
+                tmp_path / "aircraft.sysml",
+                tmp_path / "lookalike.sysml",
+                core_definitions(),
+            ),
+        )
+    assert "RedInterceptorScenario" in str(caught.value)
+    assert "specializes ParameterSet" in str(caught.value)
+
+
+@pytest.mark.level_unit
+def test_parameter_set_requires_the_shared_core_root(tmp_path):
+    path = _write_model(tmp_path)
+    with pytest.raises(SysMLError) as caught:
+        load_federation(path, includes=(tmp_path / "aircraft.sysml",))
+    message = str(caught.value)
+    assert "PysspCore::ParameterSet" in message
+    assert str(core_definitions()) in message
 
 
 @pytest.mark.level_unit

@@ -34,6 +34,11 @@ __all__ = ["SOS_FILE", "SysMLError", "load_federation", "sos_definitions"]
 
 _FEDERATION_DEF = "Federation"
 
+#: The shared initialization marker supplied by the ``PysspCore`` root.
+_CORE_PACKAGE = "PysspCore"
+_PARAMETER_SET_MARKER = "ParameterSet"
+_PARAMETER_SET_KEY = f"{_CORE_PACKAGE}::{_PARAMETER_SET_MARKER}"
+
 #: Name of the bundled system-of-systems launch vocabulary inside the package.
 SOS_FILE = "sos.sysml"
 
@@ -340,15 +345,33 @@ def _check_port_usage(
         )
 
 
-def _is_parameter_set_definition(architecture: Any, definition: Any) -> bool:
-    """Whether *definition* specializes the imported ``ParameterSet``.
+def _parameter_set_marker(architecture: Any, *, path: Path) -> Any:
+    """The shipped ``PysspCore::ParameterSet`` supplied by an included root."""
+    marker = architecture.attribute_definitions.get(_PARAMETER_SET_KEY)
+    if marker is None or _PARAMETER_SET_KEY not in architecture.included_definitions:
+        root = pycps_sysml2.core_definitions()
+        raise _error(
+            path,
+            _PARAMETER_SET_KEY,
+            "missing shared vocabulary root "
+            f"'{root}'; include it so ParameterSet resolves to the shipped marker",
+        )
+    return marker
+
+
+def _is_parameter_set_definition(
+    architecture: Any, definition: Any, *, path: Path
+) -> bool:
+    """Whether *definition* specializes the shipped ``ParameterSet`` marker.
 
     The set itself is vocabulary, not a local definition: a primary
     ``attribute def`` is accepted only when its specialization chain reaches
-    ``ParameterSet``.
+    the included ``PysspCore::ParameterSet`` object. A definition that merely
+    shares the name does not qualify.
     """
     if not definition.specializes:
         return False
+    marker = _parameter_set_marker(architecture, path=path)
     seen: set[str] = set()
     stack = [definition]
     while stack:
@@ -357,7 +380,7 @@ def _is_parameter_set_definition(architecture: Any, definition: Any) -> bool:
         if key in seen:
             continue
         seen.add(key)
-        if current is not definition and current.name == "ParameterSet":
+        if current is not definition and current is marker:
             return True
         for supertype in current.specializes:
             try:
@@ -1211,12 +1234,12 @@ def load_federation(
     for key, attribute_def in architecture.attribute_definitions.items():
         if key in architecture.included_definitions:
             continue
-        if not _is_parameter_set_definition(architecture, attribute_def):
+        if not _is_parameter_set_definition(architecture, attribute_def, path=path):
             raise _error(
                 path,
                 key if "::" in key else f"{package}::{key}",
                 "attribute def is outside the supported SysML subset unless "
-                "it specializes ParameterSet",
+                "it specializes ParameterSet, the shared PysspCore marker",
             )
     for kind, definitions in (
         ("requirement def", architecture.requirement_definitions),
