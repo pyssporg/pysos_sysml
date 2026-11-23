@@ -16,7 +16,8 @@ status: current
 | `pysos_sysml.model` | setup IR: five plain dataclasses | stdlib | `pycps_sysml2`, `pysos_coordinate`, anything else |
 | `pysos_sysml.loader` | call `pycps_sysml2.load`, ship the launch vocabulary, enforce the subset | stdlib, `pycps_sysml2`, `model` | `pysos_coordinate` |
 | `pysos_sysml.lower` | IR → schema-1 manifest dict / JSON | stdlib, `model` | `pycps_sysml2`, `pysos_coordinate` |
-| `pysos_sysml.cli` | `validate` and `manifest` commands | stdlib, `loader`, `lower` | anything else |
+| `pysos_sysml.manifest` | `render` and `check`: lowering versus a checked-in file | stdlib, `loader`, `lower` | `pycps_sysml2`, `pysos_coordinate` |
+| `pysos_sysml.cli` | `validate` and `manifest` commands | stdlib, `loader`, `lower`, `manifest` | anything else |
 
 The IR is the stable center: the loader may know the parser, the lowerer may
 know the manifest schema, but neither leaks the other's vocabulary into

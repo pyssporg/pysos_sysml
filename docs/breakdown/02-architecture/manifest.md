@@ -47,7 +47,8 @@ not import the owner and does not execute the result.
 
 The top level carries exactly `schema`, `name`, `timing`, and `instances`. Every
 instance carries exactly `name`, `command`, `cwd`, `env`, `entities`,
-`telemetry`, `control`, and `startup_timeout`.
+`telemetry`, and `startup_timeout`, plus `control` when the setup authors a
+`controlPort`.
 
 ## Mapping
 
@@ -88,13 +89,15 @@ occurrence:
 | Key | Value | Present |
 | --- | --- | --- |
 | `PYSOS_TELEMETRY_PORT` | occurrence telemetry port, decimal text | always |
-| `PYSOS_CONTROL_PORT` | occurrence control port, decimal text | always |
+| `PYSOS_CONTROL_PORT` | occurrence control port, decimal text | only when a control endpoint is authored |
 | `PYSOS_SCENARIO` | authored `scenario` value, verbatim | only when authored |
 | `PYSOS_LAUNCH_MODE` | authored `launch.mode` value, verbatim | only when a launch is authored |
 | `PYSOS_READINESS` | authored `launch.readiness` value, verbatim | only when a launch is authored |
+| `PYSOS_LAUNCH_ORDER` | authored `launch.order`, decimal text | only when a launch is authored |
+| `PYSOS_AFTER_PROCESS` | authored `launch.after_process` value, verbatim | only when a launch is authored |
 
 The scenario and launch are authored once per part usage, so every occurrence
-of that usage carries the same values; the two port keys differ per occurrence.
+of that usage carries the same values; the port keys differ per occurrence.
 `env` has no other keys. `pysos_coordinate` passes `env` through opaquely: it
 layers the mapping over `os.environ` and validates only that keys and values are
 strings, so these key names are this package's contract with the producer, not
@@ -124,6 +127,6 @@ missing.
 
 `pysos-sysml manifest FILE -o PATH --check` is the CI form. It requires `-o`,
 never writes the file, prints `ok: PATH is up to date` and exits 0 on an exact
-match, and treats drift (including a missing file) as exit 1 with a short
-stderr message plus a unified diff bounded to 20 lines. Usage errors and
-`SysMLError` keep exit 2.
+match, and treats drift as exit 1 with a short stderr message plus a unified
+diff bounded to 20 lines. A missing file is drift too: exit 1 and a short
+stderr message, with no diff. Usage errors and `SysMLError` keep exit 2.

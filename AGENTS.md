@@ -32,7 +32,8 @@ federation declaration, builds `FederationDef` / `InstanceDef` / `EntityDef` /
 `EndpointDef`, and lowers it to the schema-1 manifest owned by `pysos_coordinate`.
 
 - Modules: `model` (IR), `loader` (parser walk and subset enforcement), `lower`
-  (manifest), `cli` (`validate`, `manifest`).
+  (manifest), `manifest` (render/check), `cli` (`validate`, `manifest`; console
+  script `pysos-sysml`, also `python -m pysos_sysml`).
 - It sits between the parser and the runner: `pycps_sysml2` below,
   `pysos_coordinate` above.
 

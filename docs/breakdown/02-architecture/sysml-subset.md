@@ -30,7 +30,7 @@ package <Package> {
       attribute entity        : Integer = <integer>;
       attribute marking       : String  = "<string>";
       attribute telemetryPort : Integer = <integer>;
-      attribute controlPort   : Integer = <integer>;
+      [attribute controlPort : Integer = <integer>;]
       attribute command       : String  = "<string>";
       attribute cwd           : String  = "<string>";
       [attribute scenario : String = "<string>";]
@@ -70,8 +70,9 @@ literals; `<real>` is a decimal real literal; `<Package>`, `<EntityType>`,
    At least one instance must exist.
 4. **Every instance is a `part` usage on `Federation`, typed by a part def.**
    The type must resolve; an unknown type is an error.
-5. **An instance body carries the eight required attributes above plus at most
-   the optional `scenario`,** all with their declared type and a literal value.
+5. **An instance body carries the seven required attributes above, plus the
+   optional `controlPort` and at most the optional `scenario`,** all with their
+   declared type and a literal value.
    Missing, unknown, untyped, or wrongly typed attributes are errors. Bodies
    contain no connections, bindings, ports, or constraints.
 6. **At most one nested `part launch : LaunchSpec` per instance.** It must
@@ -93,11 +94,14 @@ literals; `<real>` is a decimal real literal; `<Package>`, `<EntityType>`,
    (`private import Aircraft::*;`). Included roots are exempt from the primary
    member checks: they may declare port/attribute/requirement/constraint defs,
    specialization, ports, and connections. They may not redefine a definition
-   the primary model or another root already supplies.
-9. **No other primary definitions.** `port def`, `attribute def`,
-   `requirement def`, `constraint def`, variation, specialization, metadata,
-   and views are rejected in the primary model. Only included roots may carry
-   them.
+   the primary model or another root already supplies. A primary `attribute
+   def` is accepted only as a parameter set: its specialization chain must
+   reach the shipped `PysspCore::ParameterSet` marker by definition identity,
+   not by name; a missing core root is an error naming that root.
+9. **No other primary definitions.** `port def`, `requirement def`,
+   `constraint def`, variation, specialization, metadata, and views are
+   rejected in the primary model, except the `attribute def` parameter sets in
+   rule 8. Only included roots may carry the rest.
 
 ## Value semantics
 
@@ -108,7 +112,7 @@ literals; `<real>` is a decimal real literal; `<Package>`, `<EntityType>`,
 | `entity` | `Integer` | base entity id; occurrence *i* gets `entity + i` |
 | `marking` | `String` | quoted string, escapes decoded |
 | `telemetryPort` | `Integer` | base port; occurrence *i* gets `telemetryPort + i` |
-| `controlPort` | `Integer` | base port; occurrence *i* gets `controlPort + i` |
+| `controlPort` | `Integer` | optional base port; occurrence *i* gets `controlPort + i`; omitted means no control endpoint |
 | `command` | `String` | executable command line |
 | `cwd` | `String` | working directory |
 | `scenario` | `String` | optional flight scenario; same value for every occurrence |

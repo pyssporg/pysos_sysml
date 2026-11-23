@@ -14,6 +14,7 @@ Python 3.10 or newer.
 
 ```bash
 python -m pip install -e ".[dev]"
+python -m pip install -e "repos/pysos_sysml[dev]"   # from the workspace root
 ```
 
 The runtime dependency is the pinned `pycps_sysml2` 0.4.0 wheel, fetched from
@@ -50,8 +51,9 @@ vocabulary or architecture root to the primary setup. The bundled
 `private import PysosSoS::*;` in the setup. `--check` requires `-o/--output`
 and compares the current lowering with that file byte for byte, without writing
 it. A match prints
-`ok: PATH is up to date` and exits 0. Drift, including a missing file, exits
-1 with a short stderr message and a bounded unified diff (at most 20 lines).
+`ok: PATH is up to date` and exits 0. Drift exits 1 with a short stderr message
+and a bounded unified diff (at most 20 lines); a missing file exits 1 with a
+short stderr message and no diff.
 
 Library use:
 
@@ -106,9 +108,9 @@ package Flight {
 ```
 
 `[3]` means three occurrences with consecutive entity ids and ports. The launch
-timeout becomes the manifest `startup_timeout`; its mode and readiness become
-producer environment keys. The complete accepted language, its values, and its
-errors are in
+timeout becomes the manifest `startup_timeout`; its mode, readiness, order and
+after-process become producer environment keys. The complete accepted language,
+its values, and its errors are in
 [`docs/breakdown/02-architecture/sysml-subset.md`](docs/breakdown/02-architecture/sysml-subset.md).
 Anything outside it raises `SysMLError` naming the offending qualified name.
 
@@ -131,7 +133,7 @@ python -m pytest
 ruff check src tests
 ```
 
-Layout: `src/pysos_sysml/{model,loader,lower,cli}.py` plus the bundled
+Layout: `src/pysos_sysml/{model,loader,lower,manifest,cli}.py` plus the bundled
 `src/pysos_sysml/sos.sysml`, tests under `tests/`.
 Read [`AGENTS.md`](AGENTS.md) and the
 [intent](docs/breakdown/00-intent/intent.md) before changing behaviour.
