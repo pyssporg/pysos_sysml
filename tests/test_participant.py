@@ -3,32 +3,30 @@
 The model text mirrors the frozen ``AircraftFederation`` contract in a small
 form: four aviation variants, one named scenario/identity/transport set each,
 four application wrappers, four participant wrappers and a bare-usage
-``Federation``. The includes stand in for the ``Aircraft`` and ``PysspCore``
-roots so nothing outside this repository is needed.
+``Federation``. ``Aircraft`` is a local fixture; ``PysspCore`` is loaded from the
+shared vocabulary root so the test cannot drift from the shipped roles.
 """
 
 from pathlib import Path
 
 import pytest
+from pycps_sysml2 import core_definitions
 
 from pysos_sysml import LaunchDef, SysMLError, load_federation
 from pysos_sysml.lower import to_manifest
 from pysos_sysml.model import EndpointDef, EntityDef, FederationDef, InstanceDef
 
 AIRCRAFT = """package Aircraft {
+  private import PysspCore::*;
+
   part def AircraftModel {
   }
 
-  attribute def BaselineExperiment {
+  attribute def BaselineExperiment :> Experiment {
     attribute startTime : Real = 0.0;
     attribute stopTime : Real = 120.0;
     attribute stepSize : Real = 0.1;
   }
-}
-"""
-
-CORE = """package PysspCore {
-  attribute def ParameterSet;
 }
 """
 
@@ -131,8 +129,6 @@ def _usage_name(variant: str) -> str:
 def _write_model(tmp_path: Path) -> Path:
     aircraft = tmp_path / "aircraft.sysml"
     aircraft.write_text(AIRCRAFT, encoding="utf-8")
-    core = tmp_path / "core.sysml"
-    core.write_text(CORE, encoding="utf-8")
     primary = tmp_path / "aircraft_federation.sysml"
     primary.write_text(_model_text(), encoding="utf-8")
     return primary
@@ -141,7 +137,7 @@ def _write_model(tmp_path: Path) -> Path:
 def _load(tmp_path: Path) -> FederationDef:
     return load_federation(
         _write_model(tmp_path),
-        includes=(tmp_path / "aircraft.sysml", tmp_path / "core.sysml"),
+        includes=(tmp_path / "aircraft.sysml", core_definitions()),
     )
 
 
@@ -168,6 +164,22 @@ def test_local_markers_and_parameter_sets_are_accepted(tmp_path):
         "BlueCasParticipant",
         "BlueBaselineParticipant",
     }
+
+
+@pytest.mark.level_unit
+def test_attribute_definition_must_specialize_parameter_set(tmp_path):
+    """A parameter set is recognized by its supertype, never by its name."""
+    path = _variant_path(
+        tmp_path,
+        "  attribute def RedInterceptorScenario :> ParameterSet {",
+        "  attribute def RedInterceptorScenario {",
+    )
+    with pytest.raises(SysMLError) as caught:
+        load_federation(
+            path,
+            includes=(tmp_path / "aircraft.sysml", core_definitions()),
+        )
+    assert "specializes ParameterSet" in str(caught.value)
 
 
 @pytest.mark.level_unit
@@ -270,7 +282,7 @@ def test_marker_port_definition_with_attributes_is_rejected(tmp_path):
     with pytest.raises(SysMLError) as caught:
         load_federation(
             path,
-            includes=(tmp_path / "aircraft.sysml", tmp_path / "core.sysml"),
+            includes=(tmp_path / "aircraft.sysml", core_definitions()),
         )
     assert "port def is outside" in str(caught.value)
 
@@ -285,7 +297,7 @@ def test_transport_must_be_udp(tmp_path):
     with pytest.raises(SysMLError) as caught:
         load_federation(
             path,
-            includes=(tmp_path / "aircraft.sysml", tmp_path / "core.sysml"),
+            includes=(tmp_path / "aircraft.sysml", core_definitions()),
         )
     assert "transport must be 'udp'" in str(caught.value)
 
@@ -300,7 +312,7 @@ def test_bind_address_must_be_host_and_port(tmp_path):
     with pytest.raises(SysMLError) as caught:
         load_federation(
             path,
-            includes=(tmp_path / "aircraft.sysml", tmp_path / "core.sysml"),
+            includes=(tmp_path / "aircraft.sysml", core_definitions()),
         )
     assert "bind_address must be 'host:port'" in str(caught.value)
 
@@ -315,7 +327,7 @@ def test_application_launch_body_is_validated_as_before(tmp_path):
     with pytest.raises(SysMLError) as caught:
         load_federation(
             path,
-            includes=(tmp_path / "aircraft.sysml", tmp_path / "core.sysml"),
+            includes=(tmp_path / "aircraft.sysml", core_definitions()),
         )
     assert "missing required launch attribute 'readiness'" in str(caught.value)
 
