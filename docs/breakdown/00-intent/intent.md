@@ -19,7 +19,7 @@ control endpoints it uses.
 The package is deliberately thin:
 
 ```text
-federation.sysml --pycps_sysml2.load--> Architecture
+federation.sysml --pycps_sysml.load--> Architecture
                                            │
                                   pysos_sysml.loader
                                            │
@@ -35,7 +35,7 @@ setup language. It emits data; it does not run anything.
 
 ## Commitments
 
-- **One parser.** SysML v2 is parsed by `pycps_sysml2.load`. This package owns
+- **One parser.** SysML v2 is parsed by `pycps_sysml.load`. This package owns
   no grammar, no tokenizer, and no second dialect.
 - **The subset is documented and enforced.** `02-architecture/sysml-subset.md`
   is the complete accepted language. Anything outside it raises `SysMLError`
@@ -64,9 +64,9 @@ setup language. It emits data; it does not run anything.
 
 | Package | Responsibility | Relationship |
 | --- | --- | --- |
-| `pycps_sysml2` | SysML v2 dialect parser and architecture IR | direct dependency, pinned wheel |
+| `pycps_sysml` | SysML v2 dialect parser and architecture IR | direct dependency, pinned wheel |
 | `pysos_sysml` | setup IR, loader, manifest lowering, CLI | this package |
 | `pysos_coordinate` | owns manifest schema 1 and executes it | consumer of the manifest |
 
-The arrows are one-way: `pysos_sysml` imports `pycps_sysml2`, never the
+The arrows are one-way: `pysos_sysml` imports `pycps_sysml`, never the
 reverse, and never imports `pysos_coordinate`.

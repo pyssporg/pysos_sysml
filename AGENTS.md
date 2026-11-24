@@ -34,12 +34,12 @@ federation declaration, builds `FederationDef` / `InstanceDef` / `EntityDef` /
 - Modules: `model` (IR), `loader` (parser walk and subset enforcement), `lower`
   (manifest), `manifest` (render/check), `cli` (`validate`, `manifest`; console
   script `pysos-sysml`, also `python -m pysos_sysml`).
-- It sits between the parser and the runner: `pycps_sysml2` below,
+- It sits between the parser and the runner: `pycps_sysml` below,
   `pysos_coordinate` above.
 
 ## Hard constraints
 
-- **One parser.** SysML v2 is parsed by `pycps_sysml2.load`. Do not fork a
+- **One parser.** SysML v2 is parsed by `pycps_sysml.load`. Do not fork a
   parser, copy grammar, import sysmlpy directly, or invent a second dialect.
   The only lexical supplement is the documented multiplicity adjunct in
   `loader._multiplicities`, and it must disappear when the parser exposes
@@ -55,7 +55,7 @@ federation declaration, builds `FederationDef` / `InstanceDef` / `EntityDef` /
   library. Do not add `pysos_coordinate` types to it.
 - **Do not import `pysos_coordinate`.** The schema-1 dictionary is the contract;
   the owner is documented, not imported.
-- **`pycps_sysml2` is read-only.** If its API cannot express the subset,
+- **`pycps_sysml` is read-only.** If its API cannot express the subset,
   document the smallest extension in `02-architecture/layers.md` and work
   around it read-only.
 - **Deterministic output.** Sorted keys, two-space indent, one trailing newline.
