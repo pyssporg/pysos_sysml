@@ -1,8 +1,8 @@
 """Load the supported SysML subset into :mod:`pysos_sysml.model`.
 
-Parsing is delegated wholesale to ``pycps_sysml2.load``. This module only
+Parsing is delegated wholesale to ``pycps_sysml.load``. This module only
 walks the repo-owned ``Architecture`` model and rejects everything the subset
-does not define. The one exception is part-usage multiplicity: ``pycps_sysml2``
+does not define. The one exception is part-usage multiplicity: ``pycps_sysml``
 0.2.0 does not retain it on ``PartUsage`` (see
 ``docs/breakdown/02-architecture/layers.md``), so :func:`_multiplicities`
 reads the single-line ``[N]`` annotation lexically. Structure, names, types,
@@ -26,7 +26,7 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import Any
 
-import pycps_sysml2
+import pycps_sysml
 
 from pysos_sysml.model import EndpointDef, EntityDef, FederationDef, InstanceDef, LaunchDef
 
@@ -76,7 +76,7 @@ _LAUNCH_ATTRIBUTE_TYPES = {
     "after_process": "String",
 }
 _LAUNCH_MODES = frozenset({"supervised", "operator", "manual"})
-_LAUNCH_READINESS = frozenset({"none", "port_bound", "log_line"})
+_LAUNCH_READINESS = frozenset({"none", "port_bound", "socket_bound", "log_line"})
 _LAUNCH_IDENTIFIER = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 
 # A part usage multiplicity is only an integer occurrence count in this subset.
@@ -285,7 +285,7 @@ def _matching_brace(text: str, open_index: int) -> int:
 def _launch_duplicates(path: Path) -> dict[str, tuple[str, ...]]:
     """Repeated ``launch`` attribute names per authored instance.
 
-    ``pycps_sysml2`` stores body attributes in a dict, so a repeated name
+    ``pycps_sysml`` stores body attributes in a dict, so a repeated name
     silently keeps the last value. This validation adjunct reads only the
     primary ``Federation`` body to recover the names the parser collapsed; the
     parser remains the authority on every value.
@@ -349,7 +349,7 @@ def _parameter_set_marker(architecture: Any, *, path: Path) -> Any:
     """The shipped ``PysspCore::ParameterSet`` supplied by an included root."""
     marker = architecture.attribute_definitions.get(_PARAMETER_SET_KEY)
     if marker is None or _PARAMETER_SET_KEY not in architecture.included_definitions:
-        root = pycps_sysml2.core_definitions()
+        root = pycps_sysml.core_definitions()
         raise _error(
             path,
             _PARAMETER_SET_KEY,
@@ -764,7 +764,7 @@ def _set_definition(
 
 
 def _set_members(architecture: Any, definition: Any) -> Any:
-    return pycps_sysml2.effective_members(architecture, definition).attributes
+    return pycps_sysml.effective_members(architecture, definition).attributes
 
 
 def _member_values(attributes: Any) -> Mapping[str, Any]:
@@ -802,6 +802,45 @@ def _bind_endpoint(value: str, *, path: Path, qualified: str) -> tuple[str, int]
     return host, port
 
 
+def _unix_address(value: str, *, path: Path, qualified: str) -> str:
+    """Validate a bare Unix domain socket address.
+
+    The authored form is bare: an absolute ``/path`` or an abstract ``@name``.
+    A ``unix://`` prefix, a relative path, and a ``host:port`` value are all
+    rejected with the accepted form in the message.
+    """
+    if value.startswith("unix://"):
+        raise _error(
+            path,
+            qualified,
+            f"unix address must be bare, not {value!r}; write '/abs/x.sock' or '@name'",
+        )
+    if not value.strip():
+        raise _error(path, qualified, "unix address must not be empty")
+    if ":" in value:
+        raise _error(
+            path,
+            qualified,
+            "unix address must be a socket path, not 'host:port'; "
+            f"write '/abs/x.sock' or '@name', got {value!r}",
+        )
+    if value.startswith("@"):
+        if len(value) == 1:
+            raise _error(
+                path,
+                qualified,
+                "abstract unix address must name something after '@'",
+            )
+        return value
+    if not value.startswith("/"):
+        raise _error(
+            path,
+            qualified,
+            f"unix address must be an absolute path or '@name', got {value!r}",
+        )
+    return value
+
+
 def _count_for_usage(
     usage: Any, counts: dict[str, tuple[str, int]], *, path: Path, qualified: str
 ) -> int:
@@ -836,7 +875,7 @@ def _load_participant_instance(
     ``effective_members`` so inherited members are merged by the parser layer.
     """
     qualified = f"{package}::{_FEDERATION_DEF}::{usage.name}"
-    members = pycps_sysml2.effective_members(architecture, part_def)
+    members = pycps_sysml.effective_members(architecture, part_def)
 
     aircraft_usage = members.parts.get("aircraft")
     if aircraft_usage is None:
@@ -848,7 +887,7 @@ def _load_participant_instance(
     aircraft = _base_aircraft_key(
         variant, architecture=architecture, path=path, qualified=nested
     )
-    variant_members = pycps_sysml2.effective_members(architecture, variant)
+    variant_members = pycps_sysml.effective_members(architecture, variant)
 
     identity = _set_definition(
         architecture,
@@ -914,11 +953,11 @@ def _load_participant_instance(
             qualified=f"{qualified}::transport",
         )
     )
-    if protocol != "udp":
+    if protocol not in ("udp", "unix"):
         raise _error(
             path,
             f"{qualified}::transport",
-            f"transport must be 'udp', got {protocol!r}",
+            f"transport must be 'udp' or 'unix', got {protocol!r}",
         )
     bind_address = str(
         _member_attribute(
@@ -929,9 +968,33 @@ def _load_participant_instance(
             qualified=f"{qualified}::transport",
         )
     )
-    host, telemetry = _bind_endpoint(
-        bind_address, path=path, qualified=f"{qualified}::transport"
-    )
+    host = "127.0.0.1"
+    telemetry: int | None = None
+    unix_path: str | None = None
+    if protocol == "udp":
+        host, telemetry = _bind_endpoint(
+            bind_address, path=path, qualified=f"{qualified}::transport"
+        )
+    else:
+        unix_path = _unix_address(
+            bind_address,
+            path=path,
+            qualified=f"{qualified}::transport::bind_address",
+        )
+        peer_address = _member_attribute(
+            transport_members,
+            "peer_address",
+            "String",
+            path=path,
+            qualified=f"{qualified}::transport",
+            required=False,
+        )
+        if peer_address is not None:
+            _unix_address(
+                str(peer_address),
+                path=path,
+                qualified=f"{qualified}::transport::peer_address",
+            )
 
     scenario = _set_definition(
         architecture,
@@ -969,7 +1032,7 @@ def _load_participant_instance(
     application_def = _resolve_part(
         architecture, application_usage, path=path, qualified=nested
     )
-    app_members = pycps_sysml2.effective_members(architecture, application_def)
+    app_members = pycps_sysml.effective_members(architecture, application_def)
     application_values = _member_values(app_members.attributes)
     waypoint_frame = application_values.get("waypointFrame")
     if waypoint_frame is not None:
@@ -1017,6 +1080,21 @@ def _load_participant_instance(
         )
 
     count = _count_for_usage(usage, counts, path=path, qualified=qualified)
+    if protocol == "unix":
+        if count != 1:
+            raise _error(
+                path,
+                f"{qualified}::transport",
+                "unix transport binds one socket path; multiplicity must be 1",
+            )
+        assert unix_path is not None
+        telemetry_ports = [EndpointDef.unix(unix_path)]
+    else:
+        assert telemetry is not None
+        telemetry_ports = [
+            EndpointDef(name="telemetry", port=telemetry + index, host=host)
+            for index in range(count)
+        ]
     return InstanceDef(
         name=usage.name,
         part_def=part_def.name,
@@ -1030,10 +1108,7 @@ def _load_participant_instance(
             )
             for index in range(count)
         ],
-        telemetry_ports=[
-            EndpointDef(name="telemetry", port=telemetry + index, host=host)
-            for index in range(count)
-        ],
+        telemetry_ports=telemetry_ports,
         control_ports=[],
         command=command,
         cwd=cwd,
@@ -1213,7 +1288,7 @@ def load_federation(
     vocabulary = sos_definitions()
     include_paths = [Path(entry) for entry in includes]
     try:
-        architecture = pycps_sysml2.load(path, vocabulary, *include_paths)
+        architecture = pycps_sysml.load(path, vocabulary, *include_paths)
     except Exception as exc:  # parser errors carry no qualified name
         raise SysMLError(f"cannot parse model: {exc}", path=path) from exc
 

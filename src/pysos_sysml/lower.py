@@ -1,9 +1,10 @@
 """Lower the setup IR to the ``pysos_coordinate`` execution manifest.
 
-The manifest is schema **version 1**, owned by ``pysos_coordinate`` and defined
-in its ``docs/breakdown/02-architecture/manifest.md``. This module does not
-import that package and does not execute anything: it produces a plain
-dictionary that conforms to the owned schema. Occurrence expansion happens
+The manifest is schema **version 1**, or **version 2** when an endpoint is a
+Unix domain socket, owned by ``pysos_coordinate`` and defined in its
+``docs/breakdown/02-architecture/manifest.md``. This module does not import that
+package and does not execute anything: it produces a plain dictionary that
+conforms to the owned schema. Occurrence expansion happens
 here, so one authored instance with multiplicity ``N`` becomes ``name_1`` …
 ``name_N`` (a scalar instance keeps its bare name).
 """
@@ -20,6 +21,7 @@ from pysos_sysml.model import EndpointDef, EntityDef, FederationDef, InstanceDef
 __all__ = ["dump_manifest", "manifest_json", "to_manifest"]
 
 SCHEMA_VERSION = 1
+UNIX_SCHEMA_VERSION = 2
 TIMING_POLICY = "wall_clock"
 DEFAULT_STARTUP_TIMEOUT = 30.0
 
@@ -36,12 +38,27 @@ def _entity(entity: EntityDef) -> dict[str, Any]:
 
 
 def _endpoint(endpoint: EndpointDef) -> dict[str, Any]:
-    # Endpoint.name is setup vocabulary (telemetry/control channel); the
-    # manifest endpoint is only a host/port pair.
+    # Endpoint.name is setup vocabulary (telemetry/control channel). A UDP
+    # endpoint is only a host/port pair; a Unix endpoint is the schema-2
+    # transport/path shape and must not repeat host or port.
+    if endpoint.transport == "unix":
+        return {
+            "transport": "unix",
+            "path": endpoint.path,
+        }
     return {
         "port": endpoint.port,
         "host": endpoint.host,
     }
+
+
+def _schema(federation: FederationDef) -> int:
+    """Schema 2 when any endpoint is a Unix domain socket, else schema 1."""
+    for instance in federation.instances:
+        for endpoint in (*instance.telemetry_ports, *instance.control_ports):
+            if endpoint.transport == "unix":
+                return UNIX_SCHEMA_VERSION
+    return SCHEMA_VERSION
 
 
 def _argv(instance: InstanceDef) -> list[str]:
@@ -88,9 +105,19 @@ def _env(instance: InstanceDef, index: int) -> dict[str, str]:
     decimal spellings for the ports; the launched producer reads its scenario
     and endpoints from its own environment.
     """
-    env = {"PYSOS_TELEMETRY_PORT": str(instance.telemetry_ports[index].port)}
+    env: dict[str, str] = {}
+    telemetry = instance.telemetry_ports[index]
+    if telemetry.transport == "unix":
+        env["PYSOS_TRANSPORT"] = "unix"
+        env["PYSOS_TELEMETRY_PATH"] = str(telemetry.path)
+    else:
+        env["PYSOS_TELEMETRY_PORT"] = str(telemetry.port)
     if instance.control_ports:
-        env["PYSOS_CONTROL_PORT"] = str(instance.control_ports[index].port)
+        control = instance.control_ports[index]
+        if control.transport == "unix":
+            env["PYSOS_CONTROL_PATH"] = str(control.path)
+        else:
+            env["PYSOS_CONTROL_PORT"] = str(control.port)
     if instance.scenario is not None:
         env["PYSOS_SCENARIO"] = instance.scenario
     if instance.launch is not None:
@@ -109,11 +136,14 @@ def to_manifest(federation: FederationDef) -> dict[str, Any]:
     ``instances``; each instance carries ``name``, ``command`` (argv),
     ``cwd``, ``env``, ``entities``, ``telemetry`` and ``startup_timeout``.
     ``control`` is emitted only when the instance declares a control endpoint.
-    ``env`` is the producer-owned channel and always carries
-    ``PYSOS_TELEMETRY_PORT``, plus ``PYSOS_CONTROL_PORT`` when a control
-    endpoint exists and ``PYSOS_SCENARIO`` when the schema-1 instance authors a
+    ``env`` is the producer-owned channel and always carries the telemetry
+    address: ``PYSOS_TELEMETRY_PORT`` for UDP or ``PYSOS_TRANSPORT`` plus
+    ``PYSOS_TELEMETRY_PATH`` for a Unix socket. It carries the control address
+    when a control endpoint exists (``PYSOS_CONTROL_PORT`` or
+    ``PYSOS_CONTROL_PATH``) and ``PYSOS_SCENARIO`` when the instance authors a
     scenario string. A promoted variant keeps its scenario in its SSP, so it
-    exposes ``scenario_values`` without lowering them.
+    exposes ``scenario_values`` without lowering them. The top-level ``schema``
+    is 2 when any endpoint is a Unix socket, otherwise 1.
     ``PYSOS_LAUNCH_MODE`` / ``PYSOS_READINESS`` / ``PYSOS_LAUNCH_ORDER`` /
     ``PYSOS_AFTER_PROCESS`` are emitted when the instance authors a launch.
     ``startup_timeout`` is the launch ``timeout_s`` when present, else the
@@ -141,7 +171,7 @@ def to_manifest(federation: FederationDef) -> dict[str, Any]:
                 entry["control"] = [_endpoint(instance.control_ports[index])]
             instances.append(entry)
     return {
-        "schema": SCHEMA_VERSION,
+        "schema": _schema(federation),
         "name": federation.name,
         "timing": TIMING_POLICY,
         "instances": instances,

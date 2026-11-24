@@ -413,6 +413,21 @@ def test_launch_unknown_readiness_is_rejected(tmp_path):
 
 
 @pytest.mark.level_unit
+def test_launch_socket_bound_readiness_is_accepted_and_emitted_verbatim(tmp_path):
+    path = _primary_variant(
+        tmp_path,
+        'attribute readiness : String = "port_bound";',
+        'attribute readiness : String = "socket_bound";',
+    )
+    federation = load_federation(path, includes=(AIRCRAFT,))
+    assert federation.instances[0].launch.readiness == "socket_bound"
+    assert (
+        to_manifest(federation)["instances"][0]["env"]["PYSOS_READINESS"]
+        == "socket_bound"
+    )
+
+
+@pytest.mark.level_unit
 def test_launch_zero_timeout_is_rejected(tmp_path):
     path = _primary_variant(
         tmp_path,

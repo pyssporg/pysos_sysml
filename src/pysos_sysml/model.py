@@ -29,11 +29,25 @@ __all__ = [
 
 @dataclass
 class EndpointDef:
-    """One telemetry or control endpoint of an instance occurrence."""
+    """One telemetry or control endpoint of an instance occurrence.
+
+    A UDP endpoint is the default and uses ``host`` and ``port``. A Unix domain
+    socket endpoint sets ``transport="unix"`` and ``path`` (an absolute path or
+    an abstract ``@name``) and leaves ``port`` as ``None``. The first three
+    fields keep their historical order so ``EndpointDef(name, port, host)``
+    keeps working.
+    """
 
     name: str
-    port: int
+    port: int | None
     host: str = "127.0.0.1"
+    transport: str = "udp"
+    path: str | None = None
+
+    @classmethod
+    def unix(cls, path: str, name: str = "telemetry") -> EndpointDef:
+        """A Unix domain socket endpoint at an absolute path or ``@name``."""
+        return cls(name=name, port=None, transport="unix", path=path)
 
 
 @dataclass

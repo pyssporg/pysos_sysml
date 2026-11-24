@@ -2,8 +2,8 @@
 id: INFO-003
 type: info
 title: Supported SysML v2 Subset
-summary: The complete accepted setup language, its values, multiplicity semantics, imports, includes, and errors.
-date: 2026-11-23
+summary: The complete accepted setup language, its values, transport addresses, readiness vocabulary, multiplicity semantics, imports, includes, and errors.
+date: 2026-11-24
 status: current
 ---
 
@@ -81,9 +81,9 @@ literals; `<real>` is a decimal real literal; `<Package>`, `<EntityType>`,
    `after_process : String`. The usage authors exactly those five attributes as
    literals, once each; duplicates, unknown names, missing names, and wrong
    types are errors. `mode` is one of `supervised`, `operator`, `manual`;
-   `readiness` is one of `none`, `port_bound`, `log_line`; the timeout is
-   greater than zero; `order` is non-negative; `after_process` is empty or a
-   process/role identifier. Any other nested part is rejected. The vocabulary
+   `readiness` is one of `none`, `port_bound`, `socket_bound`, `log_line`; the
+   timeout is greater than zero; `order` is non-negative; `after_process` is
+   empty or a process/role identifier. Any other nested part is rejected. The vocabulary
    also ships `part def Application` (roles, command, cwd and a nested launch);
    host-side models specialize it, the setup subset itself does not.
 7. **Multiplicity is one positive integer on the declaration line.** `[3]`
@@ -117,7 +117,7 @@ literals; `<real>` is a decimal real literal; `<Package>`, `<EntityType>`,
 | `cwd` | `String` | working directory |
 | `scenario` | `String` | optional flight scenario; same value for every occurrence |
 | `launch.mode` | `String` | `supervised`, `operator`, or `manual` |
-| `launch.readiness` | `String` | `none`, `port_bound`, or `log_line` |
+| `launch.readiness` | `String` | `none`, `port_bound`, `socket_bound`, or `log_line` |
 | `launch.timeout_s` | `Real` | launch timeout in seconds; greater than zero |
 | `launch.order` | `Integer` | launch phase; lower starts first; non-negative |
 | `launch.after_process` | `String` | process name or role that must be ready first; empty means none |
@@ -130,6 +130,31 @@ Occurrences are zero-based for arithmetic and one-based for names:
 `part sensor : Sensor [3]` yields `sensor_1`, `sensor_2`, `sensor_3` with entity
 ids `entity + 0`, `entity + 1`, `entity + 2`. A scalar instance keeps its bare
 name.
+
+## Transport and addresses
+
+A participant wrapper (`part <instance> : <Participant>;` with no body) reads
+the variant's `transport` parameter set. It declares three String members:
+`transport`, `bind_address`, and `peer_address`. Address values are **bare**:
+they never carry a scheme prefix.
+
+**UDP** (`transport = "udp"`) is the default and the existing shape. Both
+`bind_address` and, when present, `peer_address` are `host:port`, for example
+`"127.0.0.1:5510"`. The port is `1..65535`; occurrence *i* binds
+`bind_address` port `+ i`.
+
+**Unix domain sockets** (`transport = "unix"`) take an absolute filesystem path
+(`"/run/red.sock"`) or an abstract Linux name (`"@red-telemetry"`) in both
+`bind_address` and `peer_address`. A `unix://` prefix is rejected with a
+message pointing to the bare form, as are a relative path, an empty value, and
+a `host:port` value in a unix parameter. A unix `bind_address` names one socket
+per process, so the instance multiplicity must be `1`; a larger count is an
+error.
+
+Lowering turns a UDP bind into the schema-1 `{"host", "port"}` endpoint and a
+unix bind into the schema-2 `{"transport": "unix", "path"}` endpoint, with
+`PYSOS_TRANSPORT=unix` and `PYSOS_TELEMETRY_PATH` in the producer env. The
+exact mapping is in [`manifest.md`](manifest.md).
 
 ## Errors
 

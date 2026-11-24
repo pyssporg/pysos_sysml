@@ -5,7 +5,7 @@ package PysosSoS {
   //   mode          how the participant is started
   //                 supervised | operator | manual
   //   readiness     what "started" means
-  //                 none | port_bound | log_line
+  //                 none | port_bound | socket_bound | log_line
   //   timeout_s     bound on the readiness wait
   //   order         launch phase; lower starts first
   //   after_process process name or role that must be ready first;

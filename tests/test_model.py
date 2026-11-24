@@ -8,6 +8,21 @@ def test_endpoint_defaults_to_loopback_and_keeps_an_explicit_host():
     assert EndpointDef(name="control", port=6100, host="0.0.0.0").host == "0.0.0.0"
 
 
+def test_endpoint_defaults_to_udp_and_keeps_a_unix_helper():
+    telemetry = EndpointDef(name="telemetry", port=5100)
+    assert telemetry.transport == "udp" and telemetry.path is None
+    assert EndpointDef.unix("@telemetry") == EndpointDef(
+        name="telemetry", port=None, transport="unix", path="@telemetry"
+    )
+    control = EndpointDef.unix("/run/control.sock", name="control")
+    assert (control.name, control.port, control.transport, control.path) == (
+        "control",
+        None,
+        "unix",
+        "/run/control.sock",
+    )
+
+
 def test_ir_is_plain_dataclasses_with_the_declared_field_order():
     entity = EntityDef(site=1, application=2, entity=3, marking="UNCLASSIFIED")
     instance = InstanceDef(

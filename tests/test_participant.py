@@ -10,7 +10,7 @@ shared vocabulary root so the test cannot drift from the shipped roles.
 from pathlib import Path
 
 import pytest
-from pycps_sysml2 import core_definitions
+from pycps_sysml import core_definitions
 
 from pysos_sysml import LaunchDef, SysMLError, load_federation
 from pysos_sysml.lower import to_manifest
@@ -152,6 +152,42 @@ def _variant_path(tmp_path: Path, old: str, new: str) -> Path:
     assert old in text
     path.write_text(text.replace(old, new, 1), encoding="utf-8")
     return path
+
+
+def _unix_model_path(
+    tmp_path: Path,
+    *,
+    bind: str = "@red-telemetry",
+    peer: str = "@red-telemetry-peer",
+) -> Path:
+    """The participant model with the RedInterceptor transport set in unix form."""
+    path = _write_model(tmp_path)
+    text = path.read_text(encoding="utf-8")
+    old = (
+        "  attribute def RedInterceptorTransport :> ParameterSet {\n"
+        '    attribute transport : String = "udp";\n'
+        '    attribute bind_address : String = "127.0.0.1:5510";\n'
+        '    attribute peer_address : String = "127.0.0.1:5505";\n'
+        "  }"
+    )
+    new = (
+        "  attribute def RedInterceptorTransport :> ParameterSet {\n"
+        '    attribute transport : String = "unix";\n'
+        f'    attribute bind_address : String = "{bind}";\n'
+        f'    attribute peer_address : String = "{peer}";\n'
+        "  }"
+    )
+    assert old in text
+    path.write_text(text.replace(old, new, 1), encoding="utf-8")
+    return path
+
+
+def _load_unix(tmp_path: Path, **addresses: str):
+    path = _unix_model_path(tmp_path, **addresses)
+    return load_federation(
+        path,
+        includes=(tmp_path / "aircraft.sysml", core_definitions()),
+    )
 
 
 @pytest.mark.level_unit
@@ -385,6 +421,61 @@ def test_bind_address_must_be_host_and_port(tmp_path):
             includes=(tmp_path / "aircraft.sysml", core_definitions()),
         )
     assert "bind_address must be 'host:port'" in str(caught.value)
+
+
+@pytest.mark.level_unit
+def test_unix_transport_lowers_to_the_schema_two_endpoint_and_env(tmp_path):
+    federation = _load_unix(tmp_path)
+    red = next(
+        instance
+        for instance in federation.instances
+        if instance.name == "red_interceptor"
+    )
+    assert red.telemetry_ports == [EndpointDef.unix("@red-telemetry")]
+    assert red.transport_values["transport"] == "unix"
+
+    manifest = to_manifest(federation)
+    assert manifest["schema"] == 2
+    entry = manifest["instances"][0]
+    assert entry["name"] == "red_interceptor"
+    assert entry["telemetry"] == [{"transport": "unix", "path": "@red-telemetry"}]
+    assert "host" not in entry["telemetry"][0]
+    assert "port" not in entry["telemetry"][0]
+    assert entry["env"]["PYSOS_TRANSPORT"] == "unix"
+    assert entry["env"]["PYSOS_TELEMETRY_PATH"] == "@red-telemetry"
+    assert "PYSOS_TELEMETRY_PORT" not in entry["env"]
+    assert entry["env"]["PYSOS_LAUNCH_MODE"] == "supervised"
+    # The other variants are still udp and keep the schema-1 host/port shape.
+    assert manifest["instances"][1]["telemetry"] == [
+        {"host": "127.0.0.1", "port": 5512}
+    ]
+    assert manifest["instances"][1]["env"]["PYSOS_TELEMETRY_PORT"] == "5512"
+
+
+@pytest.mark.level_unit
+def test_unix_transport_accepts_an_absolute_bind_path(tmp_path):
+    (instance,) = _load_unix(tmp_path, bind="/run/red.sock").instances[:1]
+    assert instance.telemetry_ports == [EndpointDef.unix("/run/red.sock")]
+
+
+@pytest.mark.level_unit
+@pytest.mark.parametrize(
+    ("addresses", "fragment"),
+    [
+        ({"bind": "relative.sock"}, "absolute path or '@name'"),
+        ({"bind": "unix:///run/red.sock"}, "must be bare"),
+        ({"bind": "127.0.0.1:5510"}, "socket path, not 'host:port'"),
+        ({"bind": "@"}, "name something after '@'"),
+        ({"peer": "unix://peer.sock"}, "must be bare"),
+        ({"peer": "peer.sock"}, "absolute path or '@name'"),
+    ],
+)
+def test_invalid_unix_address_forms_are_rejected(tmp_path, addresses, fragment):
+    with pytest.raises(SysMLError) as caught:
+        _load_unix(tmp_path, **addresses)
+    message = str(caught.value)
+    assert "red_interceptor::transport::" in message
+    assert fragment in message
 
 
 @pytest.mark.level_unit

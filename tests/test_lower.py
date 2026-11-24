@@ -100,6 +100,37 @@ def _node(**overrides):
 
 
 @pytest.mark.level_unit
+def test_unix_endpoints_lower_to_paths_and_schema_two():
+    instance = _node(
+        telemetry_ports=[EndpointDef.unix("@telemetry")],
+        control_ports=[EndpointDef.unix("@control", name="control")],
+    )
+    manifest = to_manifest(_federation(instance))
+    entry = manifest["instances"][0]
+    assert manifest["schema"] == 2
+    assert entry["telemetry"] == [{"transport": "unix", "path": "@telemetry"}]
+    assert entry["control"] == [{"transport": "unix", "path": "@control"}]
+    assert entry["env"]["PYSOS_TRANSPORT"] == "unix"
+    assert entry["env"]["PYSOS_TELEMETRY_PATH"] == "@telemetry"
+    assert entry["env"]["PYSOS_CONTROL_PATH"] == "@control"
+    assert "PYSOS_TELEMETRY_PORT" not in entry["env"]
+    assert "PYSOS_CONTROL_PORT" not in entry["env"]
+
+
+@pytest.mark.level_unit
+def test_udp_endpoints_stay_schema_one_host_and_port():
+    manifest = to_manifest(_federation(_node()))
+    entry = manifest["instances"][0]
+    assert manifest["schema"] == 1
+    assert entry["telemetry"] == [{"host": "127.0.0.1", "port": 1}]
+    assert entry["control"] == [{"host": "127.0.0.1", "port": 2}]
+    assert entry["env"] == {
+        "PYSOS_TELEMETRY_PORT": "1",
+        "PYSOS_CONTROL_PORT": "2",
+    }
+
+
+@pytest.mark.level_unit
 def test_authored_scenario_reaches_every_occurrence_env():
     federation = _federation(
         _node(
