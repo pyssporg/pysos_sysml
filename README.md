@@ -5,7 +5,7 @@ manifest.
 
 `pysos-sysml` reads one setup file, builds a small self-contained IR, and emits
 the schema-1 manifest owned by `pysos_coordinate`. It is a thin layer over
-[`pycps_sysml2`](https://github.com/pyssporg/pycps_sysml2): one parser, one
+[`pycps_sysml`](https://github.com/pyssporg/pycps_sysml): one parser, one
 documented subset, no artifacts, no execution.
 
 ## Install
@@ -21,7 +21,7 @@ The runtime dependency is the pinned `pycps_sysml2` 0.4.0 wheel, fetched from
 its GitHub release:
 
 ```text
-https://github.com/pyssporg/pycps_sysml2/releases/download/v0.4.0/pycps_sysml2-0.4.0-py3-none-any.whl
+https://github.com/pyssporg/pycps_sysml/releases/download/v0.4.0/pycps_sysml2-0.4.0-py3-none-any.whl
 ```
 
 ## Use
@@ -109,7 +109,11 @@ package Flight {
 
 `[3]` means three occurrences with consecutive entity ids and ports. The launch
 timeout becomes the manifest `startup_timeout`; its mode, readiness, order and
-after-process become producer environment keys. The complete accepted language,
+after-process become producer environment keys. Readiness is one of `none`,
+`port_bound`, `socket_bound`, or `log_line`. A participant's transport parameter
+set may declare `transport = "udp"` (`host:port` addresses) or
+`transport = "unix"` (bare absolute paths or `@name`); Unix lowers to a schema-2
+endpoint and `PYSOS_TRANSPORT` / `PYSOS_TELEMETRY_PATH` env keys. The complete accepted language,
 its values, and its errors are in
 [`docs/breakdown/02-architecture/sysml-subset.md`](docs/breakdown/02-architecture/sysml-subset.md).
 Anything outside it raises `SysMLError` naming the offending qualified name.
