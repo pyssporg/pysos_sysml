@@ -37,10 +37,17 @@ jobs:
       - name: Boundaries hold
         run: |
           python - <<'PY'
+          import pathlib
+          import re
           import sys
           import pycps_sysml
           import pysos_sysml
-          assert pycps_sysml.__version__ == "0.4.0"
+          pin = pathlib.Path("pyproject.toml").read_text(encoding="utf-8")
+          match = re.search(r"pycps_sysml-([0-9][^-]*)-py3-none-any\.whl", pin)
+          assert match, "pycps_sysml wheel pin not found in pyproject.toml"
+          assert pycps_sysml.__version__ == match.group(1), (
+              f"installed pycps_sysml {pycps_sysml.__version__} != pinned {match.group(1)}"
+          )
           assert "pysos_coordinate" not in sys.modules, "manifest owner must not be imported"
           heavy = {"numpy", "matplotlib", "pint"} & set(sys.modules)
           assert not heavy, f"setup layer imported {sorted(heavy)}"

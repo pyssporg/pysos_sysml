@@ -62,10 +62,10 @@ federation declaration, builds `FederationDef` / `InstanceDef` / `EntityDef` /
 
 ## Environment
 
-- Python >= 3.10.
+- Python >= 3.11.
 - Install: `python -m pip install -e ".[dev]"`.
 - Tests: `python -m pytest` (pyproject sets `pythonpath = ["src"]`).
-- Lint: `ruff check src tests` (line length 100, `py310`).
+- Lint: `ruff check src tests` (line length 100, `py311`).
 
 ## Documentation
 

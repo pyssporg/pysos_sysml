@@ -1,6 +1,6 @@
 """System-of-systems simulation setup in SysML v2, lowered to a manifest."""
 
-__version__ = "0.3.1"
+__version__ = "0.4.0"
 
 from pysos_sysml.loader import SOS_FILE, SysMLError, load_federation, sos_definitions
 from pysos_sysml.lower import dump_manifest, manifest_json, to_manifest

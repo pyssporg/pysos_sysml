@@ -10,18 +10,18 @@ documented subset, no artifacts, no execution.
 
 ## Install
 
-Python 3.10 or newer.
+Python 3.11 or newer.
 
 ```bash
 python -m pip install -e ".[dev]"
 python -m pip install -e "repos/pysos_sysml[dev]"   # from the workspace root
 ```
 
-The runtime dependency is the pinned `pycps_sysml2` 0.4.0 wheel, fetched from
+The runtime dependency is the pinned `pycps_sysml` 0.4.0 wheel, fetched from
 its GitHub release:
 
 ```text
-https://github.com/pyssporg/pycps_sysml/releases/download/v0.4.0/pycps_sysml2-0.4.0-py3-none-any.whl
+https://github.com/pyssporg/pycps_sysml/releases/download/v0.4.0/pycps_sysml-0.4.0-py3-none-any.whl
 ```
 
 ## Use

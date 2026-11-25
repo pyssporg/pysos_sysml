@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.4.0] - 2026-11-24
 
 ### Added
 
@@ -16,7 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   included roots are accepted; included definitions are exempt from primary
   subset member checks while staying visible only through their import.
 - Primary composition part defs may declare typed `part <name> : <Type>`
-  usages; an `aircraft` usage records its resolved key on the IR.
+  usages; aircraft variants are accepted and an `aircraft` usage records its
+  resolved key on the IR.
 - Optional nested `part launch : LaunchSpec` on an instance, validated against
   the shared five-attribute vocabulary (`mode`, `readiness`, `timeout_s`,
   `order`, `after_process`) and lowered to `startup_timeout` plus
@@ -25,6 +26,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `PysosSoS::Application` base definition (roles, command, cwd, nested launch)
   for host-side models that specialize it.
 - `LaunchDef` and `InstanceDef.launch` / `InstanceDef.aircraft` in the IR.
+- Unix transport endpoints: `transport="unix"` with bare socket addresses
+  lowers to schema-2 manifest endpoints and `PYSOS_TRANSPORT` / `PYSOS_*_PATH`
+  env, with `socket_bound` readiness. UDP lowering is unchanged.
 - Fixtures and tests for aircraft composition, the bundled launch vocabulary,
   include forwarding, duplicate launch attributes, and the new error cases.
 
@@ -35,13 +39,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   stated separately.
 - `manifest.render` and `manifest.check` accept the same `includes` keyword as
   the loader, so `--check` works with includes.
-
-## [0.3.1] - 2026-11-22
-
-### Changed
-
-- Pin the `pycps-sysml2` runtime dependency to the v0.4.0 release asset; the
-  lowering is unchanged.
+- Dependency pins: the `pycps_sysml` 0.4.0 runtime wheel (renamed distribution)
+  and the `pysos_coordinate` 0.4.0 development wheel; the lowering is otherwise
+  unchanged.
 
 ## [0.3.0] - 2026-11-19
 

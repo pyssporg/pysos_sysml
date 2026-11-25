@@ -7,7 +7,7 @@ name = "pysos-sysml"
 dynamic = ["version"]
 description = "System-of-systems simulation setup in SysML v2, lowered to an execution manifest."
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 license = "MIT"
 license-files = ["LICENSE"]
 authors = [
@@ -18,7 +18,6 @@ classifiers = [
   "Development Status :: 3 - Alpha",
   "Intended Audience :: Developers",
   "Programming Language :: Python :: 3",
-  "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Topic :: Scientific/Engineering",
@@ -26,7 +25,7 @@ classifiers = [
 # One parser for the whole org. The wheel is a release asset, not a Git
 # checkout, so an install is reproducible and never tracks a moving branch.
 dependencies = [
-  "pycps-sysml2 @ https://github.com/pyssporg/pycps_sysml/releases/download/v0.4.0/pycps_sysml2-0.4.0-py3-none-any.whl",
+  "pycps_sysml @ https://github.com/pyssporg/pycps_sysml/releases/download/v0.4.0/pycps_sysml-0.4.0-py3-none-any.whl",
 ]
 
 [project.optional-dependencies]
@@ -36,7 +35,7 @@ dev = [
   "build",
   # Schema owner, used only by the optional cross-repo round-trip test. Pinned
   # to the release wheel for the same reason as the parser above.
-  "pysos-coordinate @ https://github.com/pyssporg/pysos_coordinate/releases/download/v0.3.0/pysos_coordinate-0.3.0-py3-none-any.whl",
+  "pysos-coordinate @ https://github.com/pyssporg/pysos_coordinate/releases/download/v0.4.0/pysos_coordinate-0.4.0-py3-none-any.whl",
 ]
 
 [project.scripts]
@@ -58,7 +57,7 @@ pysos_sysml = ["sos.sysml"]
 
 [tool.ruff]
 line-length = 100
-target-version = "py310"
+target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B"]
